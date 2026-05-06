@@ -1476,7 +1476,8 @@ async function simpanAbsen(type, selfieData) {
 
   if (!absensi[thisUser]) absensi[thisUser] = {};
   const timestamp = nowStr();
-  absensi[thisUser][type]       = timestamp;
+absensi[thisUser][type]       = timestamp;
+  absensi[thisUser]._lastSubmit = Date.now();   // ← tambahkan baris ini
   absensi[thisUser].namaUser    = users[thisUser].name;
   absensi[thisUser].tanggal     = new Date().toLocaleDateString('id-ID');
   absensi[thisUser].tanggalISO  = tanggal;
