@@ -1034,16 +1034,26 @@ async function reloadSharedData() {
       const svrLastMod = data.lastModified || '0';
       const cachedMod  = lsLoad('wt_last_modified_server', '0');
       if (svrHasData) {
-        // ✅ Merge dengan benar: server sebagai base, LOCAL menimpa server
-        // Sehingga data lokal yang lebih fresh (foto, keluar) tidak hilang
         const merged = Object.assign({}, svrAbs);
         const localAbs = absensi || {};
         Object.keys(localAbs).forEach(function(uname) {
           const loc = localAbs[uname];
-          const svr = merged[uname] || {};
           if (!loc) return;
+
+          // ✅ FIX: Jika server TIDAK punya data user ini, berarti admin sudah reset.
+          // Jangan restore dari lokal — KECUALI data baru saja di-submit (< 90 detik).
+          if (!merged[uname]) {
+            const lastSubmit = loc._lastSubmit || 0;
+            const baruSajaSubmit = (Date.now() - lastSubmit) < 90000; // 90 detik
+            if (!baruSajaSubmit) return; // Server reset menang, skip user ini
+            // Baru saja absen → pertahankan data lokal
+            merged[uname] = loc;
+            return;
+          }
+
+          // Server punya data → merge seperti biasa (lokal wins untuk URL foto)
+          const svr = merged[uname];
           merged[uname] = Object.assign({}, svr, {
-            // ✅ Prioritaskan field lokal jika ada nilainya
             masuk:            loc.masuk            || svr.masuk,
             keluar:           loc.keluar            || svr.keluar,
             fotoMasukUrl:     loc.fotoMasukUrl      || svr.fotoMasukUrl,
@@ -1055,6 +1065,7 @@ async function reloadSharedData() {
             fotoKeluarView:   loc.fotoKeluarView    || svr.fotoKeluarView,
             fotoKeluarFileId: loc.fotoKeluarFileId  || svr.fotoKeluarFileId,
             namaUser:         loc.namaUser          || svr.namaUser,
+            _lastSubmit:      loc._lastSubmit       || svr._lastSubmit,
             _selfieMasukLocal:  loc._selfieMasukLocal,
             _selfieKeluarLocal: loc._selfieKeluarLocal,
           });
