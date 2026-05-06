@@ -1920,21 +1920,35 @@ function renderResetAbsenList() {
 async function resetAbsensiKaryawan(username, namaUser) {
   if (!confirm(`Reset absensi ${namaUser} hari ini?\nData absensi hari sebelumnya tetap tersimpan.`)) return;
 
-  // Hapus data absensi user ini dari state lokal
+  // Hapus dari state lokal
   delete absensi[username];
   lsSave('wt_cache_absensi', absensi);
 
-  // Kirim ke server: hapus hanya user ini dari absensi hari ini
   if (SHEETS_URL) {
     try {
+      // ✅ FIX 1: Kirim full absensi state (tanpa user ini) → spreadsheet ikut ter-update
+      await saveAbsensi();
+
+      // ✅ FIX 2: Juga kirim explicit reset action agar GAS bisa hapus baris
       await sheetsPost({
         action: 'resetAbsensiUser',
         tanggal: getTanggalHariIni(),
         username: username,
         usersMap: Object.fromEntries(Object.entries(users).map(([k,v]) => [k, {name:v.name}]))
       });
-    } catch(e) { console.warn('resetAbsensiUser gagal:', e.message); }
+    } catch(e) {
+      console.warn('resetAbsensiUser gagal:', e.message);
+      toast('⚠️ Reset lokal berhasil, tapi server gagal: ' + e.message, 'amber');
+    }
   }
+
+  // Refresh semua UI yang relevan
+  renderResetAbsenList();
+  renderStatusList();
+  renderAbsenTable();
+  refreshAdminStats();
+  toast(`✓ Absensi ${namaUser} hari ini berhasil direset.`, 'amber');
+}
 
   // Refresh semua UI yang relevan
   renderResetAbsenList();
