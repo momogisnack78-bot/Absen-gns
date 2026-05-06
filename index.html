@@ -607,7 +607,7 @@ const DEFAULT_FEED = [];
 let users = {};
 let absensi = {};
 let feed = [];
-let SHEETS_URL = '';
+let SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwN6HQezGg7vnHvzjx0D_-EPeZKyxib7jw4z-3Yy_TU52cCXZi2Vo_T4qL3yxSB7cBW0A/exec';
 let currentUser = null;
 let camStream = null;
 let _lastSyncHash = '';   // untuk deteksi perubahan data antar perangkat
@@ -688,10 +688,19 @@ async function uploadFotoDrive(base64Data, filename) {
         mimeType: 'image/jpeg',
       }),
     });
-    const data = await response.json();
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    // ✅ FIX: GAS kadang menambahkan BOM atau whitespace sebelum JSON
+    const rawText = await response.text();
+    let data;
+    try {
+      // Hapus BOM dan whitespace awal
+      data = JSON.parse(rawText.replace(/^\uFEFF/, '').trim());
+    } catch(pe) {
+      throw new Error('Respons tidak valid dari server: ' + rawText.slice(0, 100));
+    }
     hideUploadOverlay();
     if (!data.ok) throw new Error(data.error || 'Upload gagal');
-    return { embedUrl: data.embedUrl, viewUrl: data.viewUrl, fileId: data.fileId };
+    return { embedUrl: data.embedUrl, viewUrl: data.viewUrl, fileId: data.fileId, thumbUrl: data.thumbUrl };
   } catch (err) {
     hideUploadOverlay();
     throw err;
@@ -721,26 +730,48 @@ async function sheetsGet(params = {}) {
     cache: 'no-store',
   });
   if (!r.ok) throw new Error('HTTP ' + r.status);
-  const data = await r.json();
+  // ✅ FIX: parse robust untuk handle BOM dan whitespace dari GAS
+  const rawText = await r.text();
+  let data;
+  try {
+    data = JSON.parse(rawText.replace(/^\uFEFF/, '').trim());
+  } catch(pe) {
+    throw new Error('Respons bukan JSON: ' + rawText.slice(0, 100));
+  }
   if (data.error) throw new Error(data.error);
   return data;
 }
 
-async function sheetsPost(body) {
-  if (!SHEETS_URL) return false;
-  try {
-    const r = await fetch(SHEETS_URL, {
-      method: 'POST',
-      redirect: 'follow',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(body),
-    });
-    const data = await r.json();
-    return data.ok !== false;
-  } catch(e) {
-    console.warn('sheetsPost gagal:', e.message);
+async function sheetsPost(body, retryCount = 2) {
+  if (!SHEETS_URL) {
+    console.warn('sheetsPost: SHEETS_URL belum diatur');
     return false;
   }
+  for (let attempt = 0; attempt <= retryCount; attempt++) {
+    try {
+      const r = await fetch(SHEETS_URL, {
+        method: 'POST',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const text = await r.text();
+      let data;
+      try { data = JSON.parse(text); } catch(pe) { throw new Error('Respons bukan JSON: ' + text.slice(0, 80)); }
+      if (data.error) throw new Error(data.error);
+      return data.ok !== false;
+    } catch(e) {
+      console.warn('sheetsPost attempt ' + (attempt+1) + ' gagal:', e.message);
+      if (attempt < retryCount) {
+        await new Promise(res => setTimeout(res, 1500 * (attempt + 1)));
+      } else {
+        updateSyncBadge('error');
+        return false;
+      }
+    }
+  }
+  return false;
 }
 
 // ── Save functions ──
@@ -775,8 +806,15 @@ async function saveAbsensi() {
       fotoKeluarFileId: a.fotoKeluarFileId || null,
     };
   }
-  const usersMap = Object.fromEntries(Object.entries(users).map(([k,v]) => [k, {name:v.name}]));
-  await sheetsPost({ action:'saveAbsensi', tanggal:getTanggalHariIni(), absensi:absensiForSheet, usersMap });
+  // ✅ FIX: kirim usersMap lengkap agar GAS bisa resolve nama karyawan
+  const usersMap = Object.fromEntries(
+    Object.entries(users).map(([k,v]) => [k, { name: v.name, inisial: v.inisial, role: v.role }])
+  );
+  const ok = await sheetsPost({ action:'saveAbsensi', tanggal:getTanggalHariIni(), absensi:absensiForSheet, usersMap });
+  if (!ok && SHEETS_URL) {
+    console.warn('saveAbsensi: pengiriman ke server gagal, data tetap di cache lokal');
+  }
+  return ok;
 }
 
 async function saveFeed() {
@@ -1327,6 +1365,10 @@ async function simpanAbsen(type, selfieData) {
   if (type === 'masuk')  absensi[thisUser]._selfieMasukLocal  = selfieData;
   if (type === 'keluar') absensi[thisUser]._selfieKeluarLocal = selfieData;
 
+  // ✅ Simpan cache lokal DULU sebelum upload, agar data tidak hilang jika upload gagal
+  lsSave('wt_cache_absensi', absensi);
+  lsSave('wt_cache_tanggal', tanggal);
+
   // ✅ Update UI langsung agar tombol berubah & tidak bisa diklik lagi
   updateAbsenUI();
   toast(type === 'masuk' ? '✓ Absen masuk tercatat, mengupload foto…' : '✓ Absen pulang tercatat, mengupload foto…', 'green');
@@ -1354,6 +1396,8 @@ async function simpanAbsen(type, selfieData) {
         absensi[thisUser].fotoKeluarView   = driveResult.viewUrl;
         absensi[thisUser].fotoKeluarFileId = fid;
       }
+      // ✅ Update cache setelah dapat URL Drive
+      lsSave('wt_cache_absensi', absensi);
       toast('☁️ Foto tersimpan, menyimpan absensi…', 'green');
     } catch(e) {
       toast('⚠️ Upload foto gagal: ' + e.message + ' — absensi tetap tersimpan', 'amber');
@@ -1362,13 +1406,20 @@ async function simpanAbsen(type, selfieData) {
 
   // ✅ Simpan ke server SETELAH foto selesai — data sudah lengkap
   if (type === 'masuk') await tambahJadwalMasuk();
-  await saveAbsensi();
+  const saved = await saveAbsensi();
 
   // ✅ Update UI & cache lokal setelah semua selesai
   updateAbsenUI();
   updateKStats();
   lsSave('wt_cache_absensi', absensi);
-  toast('✅ Absensi berhasil tersimpan!', 'green');
+
+  if (saved) {
+    toast('✅ Absensi berhasil tersimpan ke Spreadsheet!', 'green');
+  } else if (SHEETS_URL) {
+    toast('⚠️ Absensi tersimpan lokal, gagal kirim ke Spreadsheet. Coba "Kirim Ulang Semua Data" di Pengaturan.', 'amber');
+  } else {
+    toast('✅ Absensi tersimpan (mode offline — belum ada URL Sheets)', 'amber');
+  }
 
   // ✅ Sinkron perangkat lain setelah 8 detik
   if (SHEETS_URL) {
@@ -1725,13 +1776,18 @@ async function resetAbsensiAdmin() {
   // Kirim sinyal reset ke server agar perangkat lain ikut reset
   if (SHEETS_URL) {
     try {
-      await fetch(SHEETS_URL, {
+      const r = await fetch(SHEETS_URL, {
         method: 'POST',
         redirect: 'follow',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'resetAbsensi', tanggal: getTanggalHariIni() }),
+        // ✅ FIX: sertakan usersMap agar GAS bisa rebuild sheet dengan nama karyawan yang benar
+        body: JSON.stringify({
+          action: 'resetAbsensi',
+          tanggal: getTanggalHariIni(),
+          usersMap: Object.fromEntries(Object.entries(users).map(([k,v]) => [k, {name:v.name}]))
+        }),
       });
-    } catch(e) {}
+    } catch(e) { console.warn('resetAbsensi signal gagal:', e.message); }
   }
 
   renderStatusList(); renderAbsenTable(); refreshAdminStats();
@@ -1795,6 +1851,9 @@ async function simpanSheetsURL() {
 async function testSheetsURL() {
   const url = document.getElementById('sheets-url').value.trim();
   if (!url) { toast('Isi URL dulu!', 'amber'); return; }
+  if (!url.startsWith('https://script.google.com')) {
+    toast('URL tidak valid. Harus dari script.google.com', 'red'); return;
+  }
   const st = document.getElementById('sheets-status');
   st.style.display='block'; st.style.color='var(--text2)'; st.textContent='⏳ Menguji koneksi ke Sheets…';
   const prevUrl = SHEETS_URL; SHEETS_URL = url;
@@ -1811,11 +1870,16 @@ async function testSheetsURL() {
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: 'test' }),
       });
-      const data = await r.json();
+      const rawText = await r.text();
+      let data;
+      try { data = JSON.parse(rawText.replace(/^\uFEFF/, '').trim()); } catch(e) { throw new Error('Respons tidak valid'); }
       if (data.ok) {
         st.style.color='var(--green)';
         st.textContent='✓ Koneksi berhasil! Google Sheets & Drive siap digunakan.';
+        // ✅ FIX: simpan URL ke localStorage agar tidak hilang
         SHEETS_URL = url;
+        localStorage.setItem('wt_sheets_url', url);
+        toast('✓ URL valid dan tersimpan!', 'green');
       } else {
         throw new Error(data.error || 'Respons tidak valid');
       }
@@ -1909,6 +1973,12 @@ async function initApp() {
   document.getElementById('loading-overlay').style.display = 'flex';
   document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
 
+  // ✅ Auto-set URL default jika belum ada di localStorage
+  const _defaultUrl = 'https://script.google.com/macros/s/AKfycbwN6HQezGg7vnHvzjx0D_-EPeZKyxib7jw4z-3Yy_TU52cCXZi2Vo_T4qL3yxSB7cBW0A/exec';
+  if (!localStorage.getItem('wt_sheets_url')) {
+    localStorage.setItem('wt_sheets_url', _defaultUrl);
+  }
+
   const savedUrl = localStorage.getItem('wt_sheets_url');
 
   if (!savedUrl) {
@@ -1923,7 +1993,8 @@ async function initApp() {
         const banner = document.createElement('div');
         banner.id = 'setup-banner';
         banner.style.cssText = 'margin-top:16px;padding:12px 14px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:8px;font-size:12px;color:var(--amber);line-height:1.8';
-        banner.innerHTML = '⚠️ <b>Perlu setup Google Apps Script</b><br>Login sebagai <b>admin</b> → Pengaturan → masukkan URL deployment <b>Code_v3.gs</b>';
+        // ✅ FIX: update ke versi GAS yang benar (v5)
+        banner.innerHTML = '⚠️ <b>Perlu setup Google Apps Script</b><br>Login sebagai <b>admin</b> → Pengaturan → masukkan URL deployment <b>Code_v5.gs</b>';
         card.appendChild(banner);
       }
     }, 100);
@@ -1943,7 +2014,7 @@ async function initApp() {
   } catch(e) {
     console.warn('Gagal load dari Sheets, pakai cache lokal:', e.message);
     // Cache lokal sudah di-load di STEP 1, jadi tetap bisa login
-    setTimeout(() => toast('⚠️ Offline: Menggunakan data terakhir yang tersimpan', 'amber'), 800);
+    setTimeout(() => toast('⚠️ Offline / koneksi gagal: Menggunakan data terakhir. (' + e.message + ')', 'amber'), 800);
   }
 
   document.getElementById('loading-overlay').style.display = 'none';
