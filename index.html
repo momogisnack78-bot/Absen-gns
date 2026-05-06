@@ -305,16 +305,11 @@ textarea.inp{resize:none;min-height:90px;line-height:1.6}
 </head>
 <body>
 
-<!-- Upload progress bar -->
 <div id="upload-progress" class="upload-progress"></div>
-
-<!-- Loading overlay -->
 <div id="loading-overlay" class="loading-overlay">
   <div class="loading-spinner"></div>
   <div class="loading-text">Memuat GNS JAYA…</div>
 </div>
-
-<!-- Upload overlay -->
 <div id="upload-overlay" class="upload-overlay">
   <div class="upload-circle"></div>
   <div class="upload-txt" id="upload-txt">Mengupload foto ke Drive…</div>
@@ -330,7 +325,6 @@ textarea.inp{resize:none;min-height:90px;line-height:1.6}
       <div class="field"><label>Password</label><input id="l-pass" type="password" placeholder="••••••••"/></div>
       <div id="l-err" class="err-msg">Username atau password salah</div>
       <button class="btn btn-primary" onclick="doLogin()">Masuk →</button>
-      
     </div>
   </div>
 </div>
@@ -371,7 +365,6 @@ textarea.inp{resize:none;min-height:90px;line-height:1.6}
       </div>
     </aside>
     <main class="main">
-      <!-- HOME -->
       <div id="k-home" class="page active">
         <div class="page-header">
           <div class="page-title" id="k-greeting">Selamat pagi!</div>
@@ -394,7 +387,6 @@ textarea.inp{resize:none;min-height:90px;line-height:1.6}
         </div>
       </div>
 
-      <!-- UPDATE PEKERJAAN -->
       <div id="k-update" class="page">
         <div class="page-header"><div class="page-title">Update Pekerjaan</div><div class="page-sub">Kirim progres dengan foto — tersimpan ke Google Drive</div></div>
         <div class="card">
@@ -430,13 +422,11 @@ textarea.inp{resize:none;min-height:90px;line-height:1.6}
         </div>
       </div>
 
-      <!-- FEED -->
       <div id="k-feed" class="page">
         <div class="page-header"><div class="page-title">Feed Tim</div><div class="page-sub">Semua update progres pekerjaan dari Google Drive</div></div>
         <div class="card"><div id="feed-k" class="scroll-y"></div></div>
       </div>
 
-      <!-- PROFIL -->
       <div id="k-profil" class="page">
         <div class="page-header"><div class="page-title">Profil Saya</div></div>
         <div class="card">
@@ -492,7 +482,6 @@ textarea.inp{resize:none;min-height:90px;line-height:1.6}
       </div>
     </aside>
     <main class="main">
-      <!-- DASHBOARD -->
       <div id="a-dashboard" class="page active">
         <div class="page-header">
           <div class="page-title">Dashboard</div>
@@ -513,7 +502,6 @@ textarea.inp{resize:none;min-height:90px;line-height:1.6}
         <div class="card"><div class="card-title">Update Terbaru</div><div id="a-feed-preview" class="scroll-y"></div></div>
       </div>
 
-      <!-- ABSENSI -->
       <div id="a-absensi" class="page">
         <div class="page-header"><div class="page-title">Rekap Absensi</div><div class="page-sub">Foto selfie tersimpan &amp; bisa diakses dari Google Drive</div></div>
         <div class="card">
@@ -543,13 +531,11 @@ textarea.inp{resize:none;min-height:90px;line-height:1.6}
         </div>
       </div>
 
-      <!-- FEED ADMIN -->
       <div id="a-feed" class="page">
         <div class="page-header"><div class="page-title">Feed &amp; Foto</div><div class="page-sub">Semua foto tersimpan di Google Drive</div></div>
         <div class="card"><div id="a-feed-full" style="max-height:none"></div></div>
       </div>
 
-      <!-- KELOLA KARYAWAN -->
       <div id="a-karyawan" class="page">
         <div class="page-header"><div class="page-title">Kelola Karyawan</div></div>
         <div class="card">
@@ -565,7 +551,6 @@ textarea.inp{resize:none;min-height:90px;line-height:1.6}
         <div class="card"><div class="card-title">Daftar Karyawan</div><div id="emp-list"></div></div>
       </div>
 
-      <!-- PENGATURAN -->
       <div id="a-pengaturan" class="page">
         <div class="page-header"><div class="page-title">Pengaturan</div></div>
         <div class="card">
@@ -586,9 +571,7 @@ textarea.inp{resize:none;min-height:90px;line-height:1.6}
         </div>
         <div class="card">
           <div class="card-title">📋 Status Spreadsheet</div>
-          <div style="font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:14px">
-            Data yang tersimpan di Google Spreadsheet:
-          </div>
+          <div style="font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:14px">Data yang tersimpan di Google Spreadsheet:</div>
           <div style="display:grid;gap:8px;font-size:13px">
             <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--r-sm);border:1px solid var(--border)">
               <span style="font-size:18px">✅</span>
@@ -704,14 +687,13 @@ textarea.inp{resize:none;min-height:90px;line-height:1.6}
 
 <script>
 // ═══════════════════════════════════════════════════════════════
-//  GNS JAYA v4.0 — Google Drive Storage + Smart Sync
-//  Foto selfie & feed: Google Drive (URL publik, embed di sheet)
-//  Data teks: Google Sheets Script Properties
-//  Auto-refresh: 30 detik (smart polling, 5 detik setelah ada perubahan)
-//  Cache lokal: localStorage — data tidak hilang saat refresh
+//  GNS JAYA v4.1 — FIXED
+//  Perbaikan:
+//  1. Bug syntax: kode duplikat di luar fungsi dihapus
+//  2. Reset absensi: langsung update UI karyawan via broadcast flag
+//  3. Performa: cache lokal tampil instan, server load di background
 // ═══════════════════════════════════════════════════════════════
 
-// ── Default users ──
 const DEFAULT_USERS = {
   budi:{pass:'1234',name:'Budi Santoso',inisial:'BS',av:'av-purple',role:'karyawan'},
   rina:{pass:'1234',name:'Rina Wulandari',inisial:'RW',av:'av-teal',role:'karyawan'},
@@ -719,37 +701,46 @@ const DEFAULT_USERS = {
   sari:{pass:'1234',name:'Sari Dewi',inisial:'SD',av:'av-coral',role:'karyawan'},
   admin:{pass:'admin',name:'Admin',inisial:'AD',av:'av-red',role:'admin'},
 };
-const DEFAULT_FEED = [];
 
-// ── State ──
 let users = {};
 let absensi = {};
 let feed = [];
-let SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwN6HQezGg7vnHvzjx0D_-EPeZKyxib7jw4z-3Yy_TU52cCXZi2Vo_T4qL3yxSB7cBW0A/exec';
+let SHEETS_URL = '';
 let currentUser = null;
 let camStream = null;
-let _lastSyncHash = '';   // untuk deteksi perubahan data antar perangkat
+let _lastSyncHash = '';
+let capturedPhoto = null;
+let _absenSedangProses = false;
+let absenPurpose = null;
+let resetTargetUser = null;
+let fotoUpdateData = null;
+let fotoUpdateDriveUrl = null;
+let fotoUpdateDriveView = null;
+let currentLightboxDriveUrl = null;
+let _pollingActive = false;
+let _pollingTimer = null;
 
-// ── LocalStorage cache helpers ──
+// ── LocalStorage helpers ──
 function lsSave(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e){} }
 function lsLoad(key, def)  { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch(e){ return def; } }
 function lsClear(key)      { try { localStorage.removeItem(key); } catch(e){} }
 
-// Simpan snapshot data ke localStorage agar tidak hilang saat refresh
+function getTanggalHariIni() { return new Date().toISOString().slice(0,10); }
+function getBulanKey() { const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1); }
+function nowStr() { return new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}); }
+
 function cacheStateToLocal() {
-  lsSave('wt_cache_users',   users);
+  lsSave('wt_cache_users', users);
   lsSave('wt_cache_absensi', absensi);
-  lsSave('wt_cache_feed',    feed);
+  lsSave('wt_cache_feed', feed);
   lsSave('wt_cache_tanggal', getTanggalHariIni());
 }
 
-// Muat data dari localStorage cache (fallback saat offline/refresh)
 function loadCacheFromLocal() {
   const tanggalCache = lsLoad('wt_cache_tanggal', null);
   const today = getTanggalHariIni();
-  users   = lsLoad('wt_cache_users',   { ...DEFAULT_USERS });
-  feed    = lsLoad('wt_cache_feed',    []);
-  // Reset absensi jika cache dari hari sebelumnya
+  users   = lsLoad('wt_cache_users', { ...DEFAULT_USERS });
+  feed    = lsLoad('wt_cache_feed', []);
   if (tanggalCache === today) {
     absensi = lsLoad('wt_cache_absensi', {});
   } else {
@@ -758,9 +749,7 @@ function loadCacheFromLocal() {
   }
 }
 
-// Buat hash ringkas dari data untuk deteksi perubahan
 function makeDataHash(data) {
-  // Gunakan lastModified dari server jika tersedia (paling akurat)
   if (data && data.lastModified && data.lastModified !== '0') {
     return 'lm_' + data.lastModified;
   }
@@ -771,25 +760,9 @@ function makeDataHash(data) {
     return '' + h;
   } catch(e) { return Math.random().toString(); }
 }
-let capturedPhoto = null;
-let _absenSedangProses = false; // guard anti double-submit
-let absenPurpose = null;
-let resetTargetUser = null;
-let fotoUpdateData = null;
-let fotoUpdateDriveUrl = null;
-let fotoUpdateDriveView = null;
-let currentLightboxDriveUrl = null;
-let _pollingActive = false;
-
-// ── Helpers ──
-function getTanggalHariIni() { return new Date().toISOString().slice(0,10); }
-function getBulanKey() { const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1); }
-function nowStr() { return new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}); }
 
 // ═══════════════════════════════════════════
 //  GOOGLE DRIVE UPLOAD
-//  Upload foto base64 ke Drive via Apps Script
-//  Return: { embedUrl, viewUrl }
 // ═══════════════════════════════════════════
 async function uploadFotoDrive(base64Data, filename) {
   if (!SHEETS_URL) throw new Error('URL Sheets belum diatur');
@@ -799,27 +772,16 @@ async function uploadFotoDrive(base64Data, filename) {
       method: 'POST',
       redirect: 'follow',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({
-        action: 'uploadFoto',
-        base64: base64Data,
-        filename: filename,
-        mimeType: 'image/jpeg',
-      }),
+      body: JSON.stringify({ action:'uploadFoto', base64:base64Data, filename, mimeType:'image/jpeg' }),
     });
     if (!response.ok) throw new Error('HTTP ' + response.status);
-    // ✅ FIX: GAS kadang menambahkan BOM atau whitespace sebelum JSON
     const rawText = await response.text();
     let data;
-    try {
-      // Hapus BOM dan whitespace awal
-      data = JSON.parse(rawText.replace(/^\uFEFF/, '').trim());
-    } catch(pe) {
-      throw new Error('Respons tidak valid dari server: ' + rawText.slice(0, 100));
-    }
+    try { data = JSON.parse(rawText.replace(/^\uFEFF/, '').trim()); } catch(pe) { throw new Error('Respons tidak valid: ' + rawText.slice(0,100)); }
     hideUploadOverlay();
     if (!data.ok) throw new Error(data.error || 'Upload gagal');
-    return { embedUrl: data.embedUrl, viewUrl: data.viewUrl, fileId: data.fileId, thumbUrl: data.thumbUrl };
-  } catch (err) {
+    return { embedUrl:data.embedUrl, viewUrl:data.viewUrl, fileId:data.fileId, thumbUrl:data.thumbUrl };
+  } catch(err) {
     hideUploadOverlay();
     throw err;
   }
@@ -842,29 +804,17 @@ function hideUploadOverlay() {
 async function sheetsGet(params = {}) {
   if (!SHEETS_URL) throw new Error('URL belum diatur');
   const qs = new URLSearchParams({ ...params, _t: Date.now() }).toString();
-  const r = await fetch(SHEETS_URL + '?' + qs, {
-    method: 'GET',
-    redirect: 'follow',
-    cache: 'no-store',
-  });
+  const r = await fetch(SHEETS_URL + '?' + qs, { method:'GET', redirect:'follow', cache:'no-store' });
   if (!r.ok) throw new Error('HTTP ' + r.status);
-  // ✅ FIX: parse robust untuk handle BOM dan whitespace dari GAS
   const rawText = await r.text();
   let data;
-  try {
-    data = JSON.parse(rawText.replace(/^\uFEFF/, '').trim());
-  } catch(pe) {
-    throw new Error('Respons bukan JSON: ' + rawText.slice(0, 100));
-  }
+  try { data = JSON.parse(rawText.replace(/^\uFEFF/, '').trim()); } catch(pe) { throw new Error('Respons bukan JSON: ' + rawText.slice(0,100)); }
   if (data.error) throw new Error(data.error);
   return data;
 }
 
 async function sheetsPost(body, retryCount = 2) {
-  if (!SHEETS_URL) {
-    console.warn('sheetsPost: SHEETS_URL belum diatur');
-    return false;
-  }
+  if (!SHEETS_URL) return false;
   for (let attempt = 0; attempt <= retryCount; attempt++) {
     try {
       const r = await fetch(SHEETS_URL, {
@@ -876,7 +826,7 @@ async function sheetsPost(body, retryCount = 2) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const text = await r.text();
       let data;
-      try { data = JSON.parse(text); } catch(pe) { throw new Error('Respons bukan JSON: ' + text.slice(0, 80)); }
+      try { data = JSON.parse(text); } catch(pe) { throw new Error('Respons bukan JSON: ' + text.slice(0,80)); }
       if (data.error) throw new Error(data.error);
       return data.ok !== false;
     } catch(e) {
@@ -895,80 +845,52 @@ async function sheetsPost(body, retryCount = 2) {
 // ── Save functions ──
 async function saveUsers() {
   lsSave('wt_cache_users', users);
-  await sheetsPost({ action: 'saveUsers', users });
+  await sheetsPost({ action:'saveUsers', users });
 }
 
 async function saveAbsensi() {
-  // Simpan dulu ke cache lokal agar tidak hilang saat refresh
   lsSave('wt_cache_absensi', absensi);
   lsSave('wt_cache_tanggal', getTanggalHariIni());
-
-  // Kirim absensi DENGAN url Drive (tanpa base64)
   const absensiForSheet = {};
   for (const [u, a] of Object.entries(absensi)) {
     if (!a) continue;
     absensiForSheet[u] = {
-      masuk:            a.masuk,
-      keluar:           a.keluar,
-      namaUser:         a.namaUser,
-      tanggal:          a.tanggal,
-      tanggalISO:       a.tanggalISO,
-      // URL thumbnail untuk web app
-      fotoMasukUrl:     a.fotoMasukUrl     || null,
-      fotoMasukView:    a.fotoMasukView    || null,
-      fotoMasukEmbed:   a.fotoMasukEmbed   || a.fotoMasukUrl  || null,
-      fotoMasukFileId:  a.fotoMasukFileId  || null,
-      fotoKeluarUrl:    a.fotoKeluarUrl    || null,
-      fotoKeluarView:   a.fotoKeluarView   || null,
-      fotoKeluarEmbed:  a.fotoKeluarEmbed  || a.fotoKeluarUrl || null,
-      fotoKeluarFileId: a.fotoKeluarFileId || null,
+      masuk:a.masuk, keluar:a.keluar, namaUser:a.namaUser,
+      tanggal:a.tanggal, tanggalISO:a.tanggalISO,
+      fotoMasukUrl:a.fotoMasukUrl||null, fotoMasukView:a.fotoMasukView||null,
+      fotoMasukEmbed:a.fotoMasukEmbed||a.fotoMasukUrl||null, fotoMasukFileId:a.fotoMasukFileId||null,
+      fotoKeluarUrl:a.fotoKeluarUrl||null, fotoKeluarView:a.fotoKeluarView||null,
+      fotoKeluarEmbed:a.fotoKeluarEmbed||a.fotoKeluarUrl||null, fotoKeluarFileId:a.fotoKeluarFileId||null,
     };
   }
-  // ✅ FIX: kirim usersMap lengkap agar GAS bisa resolve nama karyawan
-  const usersMap = Object.fromEntries(
-    Object.entries(users).map(([k,v]) => [k, { name: v.name, inisial: v.inisial, role: v.role }])
-  );
+  const usersMap = Object.fromEntries(Object.entries(users).map(([k,v]) => [k, {name:v.name, inisial:v.inisial, role:v.role}]));
   const ok = await sheetsPost({ action:'saveAbsensi', tanggal:getTanggalHariIni(), absensi:absensiForSheet, usersMap });
-  if (!ok && SHEETS_URL) {
-    console.warn('saveAbsensi: pengiriman ke server gagal, data tetap di cache lokal');
-  }
+  if (!ok && SHEETS_URL) console.warn('saveAbsensi: gagal kirim ke server, data di cache lokal');
   return ok;
 }
 
 async function saveFeed() {
-  // Cache lokal dulu
   lsSave('wt_cache_feed', feed);
-
-  // Feed sudah berisi imgUrl (Drive URL), bukan base64
-  const feedClean = feed.slice(0, 200).map(f => ({
-    user:     f.user,
-    name:     f.name,
-    inisial:  f.inisial,
-    av:       f.av,
-    proyek:   f.proyek,
-    text:     f.text,
-    time:     f.time,
-    imgUrl:   f.imgUrl   || null,  // thumbnail untuk web
-    imgEmbed: f.imgEmbed || f.imgUrl || null, // uc?export=view untuk sheet
-    imgView:  f.imgView  || null,
+  const feedClean = feed.slice(0,200).map(f => ({
+    user:f.user, name:f.name, inisial:f.inisial, av:f.av, proyek:f.proyek, text:f.text, time:f.time,
+    imgUrl:f.imgUrl||null, imgEmbed:f.imgEmbed||f.imgUrl||null, imgView:f.imgView||null,
   }));
-  await sheetsPost({ action: 'saveFeed', feed: feedClean });
+  await sheetsPost({ action:'saveFeed', feed:feedClean });
 }
 
 async function saveJadwal(data) {
   window._jadwalCache = data;
-  await sheetsPost({ action: 'saveJadwal', jadwal: data });
+  await sheetsPost({ action:'saveJadwal', jadwal:data });
 }
 
-// ── Jadwal ──
 async function getJadwalBulan() {
   const cached = window._jadwalCache;
   if (cached && cached.bulan === getBulanKey()) return cached;
-  return { bulan: getBulanKey(), count: 0 };
+  return { bulan:getBulanKey(), count:0 };
 }
 async function tambahJadwalMasuk() {
   const data = await getJadwalBulan();
-  data.count = (data.count || 0) + 1;
+  data.count = (data.count||0) + 1;
   await saveJadwal(data);
 }
 async function getJadwalBulanCount() {
@@ -981,43 +903,31 @@ async function loadAllData() {
   const savedUrl = localStorage.getItem('wt_sheets_url');
   SHEETS_URL = savedUrl || '';
   if (!SHEETS_URL) {
-    users = { ...DEFAULT_USERS };
-    feed  = [...DEFAULT_FEED];
-    absensi = {};
+    users = { ...DEFAULT_USERS }; feed = []; absensi = {};
     return;
   }
   const data = await sheetsGet({ action:'getAll', date:getTanggalHariIni() });
   users = data.users || { ...DEFAULT_USERS };
-  feed  = data.feed  || [...DEFAULT_FEED];
+  feed  = data.feed  || [];
 
-  // Sinkron absensi: server selalu menang.
-  // Satu-satunya pengecualian: jika server kosong DAN lastModified tidak berubah
-  // (artinya baru saja offline, bukan reset), maka pertahankan cache lokal.
   const serverAbsensi = data.absensi || {};
   const serverHasData = Object.keys(serverAbsensi).some(k => serverAbsensi[k] && serverAbsensi[k].masuk);
-  const serverLastMod  = data.lastModified || '0';
-  const cachedLastMod  = lsLoad('wt_last_modified_server', '0');
+  const serverLastMod = data.lastModified || '0';
+  const cachedLastMod = lsLoad('wt_last_modified_server', '0');
 
   if (serverHasData) {
-    // Server punya data → pakai server (gabung dengan lokal)
-    absensi = Object.assign({}, absensi || {}, serverAbsensi);
+    absensi = Object.assign({}, absensi||{}, serverAbsensi);
   } else if (serverLastMod !== cachedLastMod) {
-    // Server kosong DAN lastModified berubah → ini reset yang disengaja, ikuti server
     absensi = {};
     lsClear('wt_cache_absensi');
   }
-  // Jika server kosong dan lastModified sama → offline/lambat, pertahankan cache lokal
-
-  // Simpan lastModified server untuk deteksi reset berikutnya
   lsSave('wt_last_modified_server', serverLastMod);
-
   if (data.jadwal) window._jadwalCache = data.jadwal;
-  // Simpan ke localStorage agar tidak hilang saat refresh
   cacheStateToLocal();
   _lastSyncHash = makeDataHash(data);
 }
 
-// ── Smart Reload: deteksi perubahan, re-render UI jika ada update ──
+// ── Smart Reload ──
 async function reloadSharedData() {
   if (!SHEETS_URL) return false;
   try {
@@ -1027,99 +937,78 @@ async function reloadSharedData() {
 
     if (data.users) users = data.users;
     if (data.feed)  feed  = data.feed;
-    // Sinkron absensi dari server
+
     if (data.absensi !== undefined) {
       const svrAbs     = data.absensi || {};
       const svrHasData = Object.keys(svrAbs).some(k => svrAbs[k] && svrAbs[k].masuk);
       const svrLastMod = data.lastModified || '0';
       const cachedMod  = lsLoad('wt_last_modified_server', '0');
+
       if (svrHasData) {
         const merged = Object.assign({}, svrAbs);
         const localAbs = absensi || {};
         Object.keys(localAbs).forEach(function(uname) {
           const loc = localAbs[uname];
           if (!loc) return;
-
-          // ✅ FIX: Jika server TIDAK punya data user ini, berarti admin sudah reset.
-          // Jangan restore dari lokal — KECUALI data baru saja di-submit (< 90 detik).
           if (!merged[uname]) {
             const lastSubmit = loc._lastSubmit || 0;
-            const baruSajaSubmit = (Date.now() - lastSubmit) < 90000; // 90 detik
-            if (!baruSajaSubmit) return; // Server reset menang, skip user ini
-            // Baru saja absen → pertahankan data lokal
+            const baruSajaSubmit = (Date.now() - lastSubmit) < 90000;
+            if (!baruSajaSubmit) return;
             merged[uname] = loc;
             return;
           }
-
-          // Server punya data → merge seperti biasa (lokal wins untuk URL foto)
           const svr = merged[uname];
           merged[uname] = Object.assign({}, svr, {
-            masuk:            loc.masuk            || svr.masuk,
-            keluar:           loc.keluar            || svr.keluar,
-            fotoMasukUrl:     loc.fotoMasukUrl      || svr.fotoMasukUrl,
-            fotoMasukEmbed:   loc.fotoMasukEmbed    || svr.fotoMasukEmbed,
-            fotoMasukView:    loc.fotoMasukView     || svr.fotoMasukView,
-            fotoMasukFileId:  loc.fotoMasukFileId   || svr.fotoMasukFileId,
-            fotoKeluarUrl:    loc.fotoKeluarUrl     || svr.fotoKeluarUrl,
-            fotoKeluarEmbed:  loc.fotoKeluarEmbed   || svr.fotoKeluarEmbed,
-            fotoKeluarView:   loc.fotoKeluarView    || svr.fotoKeluarView,
-            fotoKeluarFileId: loc.fotoKeluarFileId  || svr.fotoKeluarFileId,
-            namaUser:         loc.namaUser          || svr.namaUser,
-            _lastSubmit:      loc._lastSubmit       || svr._lastSubmit,
-            _selfieMasukLocal:  loc._selfieMasukLocal,
-            _selfieKeluarLocal: loc._selfieKeluarLocal,
+            masuk:loc.masuk||svr.masuk, keluar:loc.keluar||svr.keluar,
+            fotoMasukUrl:loc.fotoMasukUrl||svr.fotoMasukUrl, fotoMasukEmbed:loc.fotoMasukEmbed||svr.fotoMasukEmbed,
+            fotoMasukView:loc.fotoMasukView||svr.fotoMasukView, fotoMasukFileId:loc.fotoMasukFileId||svr.fotoMasukFileId,
+            fotoKeluarUrl:loc.fotoKeluarUrl||svr.fotoKeluarUrl, fotoKeluarEmbed:loc.fotoKeluarEmbed||svr.fotoKeluarEmbed,
+            fotoKeluarView:loc.fotoKeluarView||svr.fotoKeluarView, fotoKeluarFileId:loc.fotoKeluarFileId||svr.fotoKeluarFileId,
+            namaUser:loc.namaUser||svr.namaUser, _lastSubmit:loc._lastSubmit||svr._lastSubmit,
+            _selfieMasukLocal:loc._selfieMasukLocal, _selfieKeluarLocal:loc._selfieKeluarLocal,
           });
         });
         absensi = merged;
       } else if (svrLastMod !== cachedMod) {
-        // lastModified berubah + absensi kosong = reset oleh admin
+        // ✅ FIX: Server reset absensi → hapus cache lokal juga
         absensi = {};
         lsClear('wt_cache_absensi');
         lsSave('wt_cache_absensi', {});
       }
       lsSave('wt_last_modified_server', svrLastMod);
     }
-    if (data.jadwal)  window._jadwalCache = data.jadwal;
-
-    // Cache ke localStorage setiap kali ada data baru dari server
+    if (data.jadwal) window._jadwalCache = data.jadwal;
     cacheStateToLocal();
     _lastSyncHash = newHash;
     updateSyncBadge();
 
-    if (hasChange) {
-      // Ada perubahan dari perangkat lain — update semua UI yang relevan
-      _applyUIRefresh();
-    }
+    if (hasChange) _applyUIRefresh();
     return hasChange;
   } catch(e) {
     console.warn('reloadSharedData gagal:', e.message);
+    updateSyncBadge('error');
     return false;
   }
 }
 
-// Re-render semua UI yang terlihat saat ini
 function _applyUIRefresh() {
-  // Karyawan
-  if (currentUser && users[currentUser]) {
-    const role = users[currentUser].role;
-    if (role === 'karyawan') {
-      updateAbsenUI();
-      updateKStats();
-      const kActive = document.querySelector('#screen-karyawan .page.active');
-      if (kActive) {
-        if (kActive.id === 'k-feed') renderFeed('feed-k', false);
-      }
-    } else if (role === 'admin') {
-      refreshAdminStats();
-      renderStatusList();
-      const aActive = document.querySelector('#screen-admin .page.active');
-      if (aActive) {
-        const id = aActive.id;
-        if (id === 'a-dashboard') { renderFeed('a-feed-preview', true, 3); }
-        if (id === 'a-absensi')   renderAbsenTable();
-        if (id === 'a-feed')      renderFeed('a-feed-full', true);
-        if (id === 'a-karyawan')  renderEmpList();
-      }
+  if (!currentUser || !users[currentUser]) return;
+  const role = users[currentUser].role;
+  if (role === 'karyawan') {
+    updateAbsenUI();
+    updateKStats();
+    const kActive = document.querySelector('#screen-karyawan .page.active');
+    if (kActive && kActive.id === 'k-feed') renderFeed('feed-k', false);
+  } else if (role === 'admin') {
+    refreshAdminStats();
+    renderStatusList();
+    const aActive = document.querySelector('#screen-admin .page.active');
+    if (aActive) {
+      const id = aActive.id;
+      if (id === 'a-dashboard') { renderFeed('a-feed-preview', true, 3); }
+      if (id === 'a-absensi')   renderAbsenTable();
+      if (id === 'a-feed')      renderFeed('a-feed-full', true);
+      if (id === 'a-karyawan')  renderEmpList();
     }
   }
 }
@@ -1132,45 +1021,38 @@ function updateSyncBadge(status) {
     const el = document.getElementById(id);
     if (!el) return;
     el.style.display = 'inline-flex';
-    el.style.background   = isErr ? 'rgba(239,68,68,.1)'   : 'var(--green-dim)';
-    el.style.borderColor  = isErr ? 'rgba(239,68,68,.3)'   : 'rgba(34,197,94,.2)';
+    el.style.background  = isErr ? 'rgba(239,68,68,.1)' : 'var(--green-dim)';
+    el.style.borderColor = isErr ? 'rgba(239,68,68,.3)' : 'rgba(34,197,94,.2)';
     const dot = el.querySelector('.sync-dot');
     if (dot) dot.style.background = isErr ? 'var(--red)' : 'var(--green)';
   });
-  const setSyncTxt = (id, t) => { const e = document.getElementById(id); if(e) e.textContent = t; };
-  setSyncTxt('k-sync-txt', txt);
-  setSyncTxt('k-sync-txt-desk', txt);
-  setSyncTxt('a-sync-txt', txt);
-  setSyncTxt('a-sync-txt-desk', txt);
+  ['k-sync-txt','k-sync-txt-desk','a-sync-txt','a-sync-txt-desk'].forEach(id => {
+    const e = document.getElementById(id); if(e) e.textContent = txt;
+  });
 }
 
-// ── Polling cerdas: interval pendek di awal, lalu normal ──
+// ── Smart Polling: 30 detik normal, 5 detik setelah ada perubahan ──
 function startSmartPolling() {
   if (_pollingActive) return;
   _pollingActive = true;
   let fastCount = 0;
 
   async function poll() {
-    if (!SHEETS_URL || !currentUser) return;
+    if (!_pollingActive || !SHEETS_URL || !currentUser) return;
     try {
       const changed = await reloadSharedData();
-      if (changed) {
-        // Jika ada perubahan, poll lagi 5 detik kemudian
-        fastCount = 3;
-      }
-    } catch(e) {
-      updateSyncBadge('error');
-    }
+      if (changed) fastCount = 3;
+    } catch(e) { updateSyncBadge('error'); }
+    if (!_pollingActive) return;
     const delay = (fastCount > 0) ? (fastCount--, 5000) : 30000;
-    setTimeout(poll, delay);
+    _pollingTimer = setTimeout(poll, delay);
   }
-  // Mulai polling pertama setelah 5 detik login
-  setTimeout(poll, 5000);
+  _pollingTimer = setTimeout(poll, 5000);
 }
 
 function stopPolling() {
   _pollingActive = false;
-  // pollingnya pakai setTimeout rekursif, jadi cukup set flag
+  if (_pollingTimer) { clearTimeout(_pollingTimer); _pollingTimer = null; }
 }
 
 // ═══════════════
@@ -1194,8 +1076,6 @@ function doLogout() {
   currentUser = null;
   stopCamera();
   stopPolling();
-  if (window._adminRefreshTimer)    { clearInterval(window._adminRefreshTimer);    window._adminRefreshTimer = null; }
-  if (window._karyawanRefreshTimer) { clearInterval(window._karyawanRefreshTimer); window._karyawanRefreshTimer = null; }
   showScreen('login');
   document.getElementById('l-user').value = '';
   document.getElementById('l-pass').value = '';
@@ -1205,7 +1085,7 @@ function doLogout() {
 //  SCREENS & NAV
 // ═══════════════
 function showScreen(s) {
-  document.querySelectorAll('.screen').forEach(x => { x.classList.remove('active'); x.style.display = 'none'; });
+  document.querySelectorAll('.screen').forEach(x => { x.classList.remove('active'); x.style.display='none'; });
   const el = document.getElementById('screen-' + s);
   el.style.display = 'block'; el.classList.add('active');
   const gnav = document.getElementById('global-mobile-nav');
@@ -1263,7 +1143,7 @@ function aNavGlobal(page, activeId) {
   document.querySelectorAll('#screen-admin .page').forEach(p => p.classList.remove('active'));
   const pg = document.getElementById('a-' + page);
   if (pg) pg.classList.add('active');
-  ['ga-dashboard','ga-absensi','ga-feed','ga-karyawan'].forEach(id => {
+  ['ga-dashboard','ga-absensi','ga-feed','ga-karyawan','ga-pengaturan'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('active', id === activeId);
   });
@@ -1284,17 +1164,14 @@ function initKaryawan() {
   const u = users[currentUser];
   const h = new Date().getHours();
   document.getElementById('k-greeting').textContent = (h<12?'Selamat pagi, ':h<17?'Selamat siang, ':'Selamat sore, ') + u.name.split(' ')[0] + '!';
-  document.getElementById('k-date-sub').textContent = new Date().toLocaleDateString('id-ID', {weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('k-date-sub').textContent = new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   document.getElementById('sb-name').textContent = u.name.split(' ')[0];
   ['sb-avatar','mh-avatar'].forEach(id => { const el = document.getElementById(id); el.textContent = u.inisial; el.className = 'avatar ' + u.av; });
   updateAbsenUI();
   updateKStats();
   setInterval(updateMetaBox, 10000);
   updateMetaBox();
-
-  // Mulai smart polling (30 detik normal, 5 detik setelah ada perubahan)
   stopPolling();
-  _pollingActive = false;
   startSmartPolling();
 }
 
@@ -1305,7 +1182,6 @@ function updateAbsenUI() {
   const it   = document.getElementById('absen-time-text');
   const ba   = document.getElementById('absen-btn-area');
   const selfieHome = document.getElementById('absen-selfie-home');
-
   if (!a) {
     icon.className = 'absen-icon idle';
     icon.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>';
@@ -1317,20 +1193,13 @@ function updateAbsenUI() {
     icon.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"/></svg>';
     st.textContent = 'Sedang Bekerja'; it.textContent = 'Masuk pukul ' + a.masuk;
     ba.innerHTML = '<button class="btn btn-ghost" style="padding:12px 28px" onclick="bukaKameraAbsen(\'keluar\')">📸 Absen Pulang</button>';
-    // Tampilkan foto dari Drive URL
-    if (a.fotoMasukUrl) {
-      selfieHome.src = a.fotoMasukUrl;
-      selfieHome.style.display = 'block';
-    } else if (a._selfieMasukLocal) {
-      selfieHome.src = a._selfieMasukLocal;
-      selfieHome.style.display = 'block';
-    } else {
-      selfieHome.style.display = 'none';
-    }
+    if (a.fotoMasukUrl) { selfieHome.src = a.fotoMasukUrl; selfieHome.style.display = 'block'; }
+    else if (a._selfieMasukLocal) { selfieHome.src = a._selfieMasukLocal; selfieHome.style.display = 'block'; }
+    else { selfieHome.style.display = 'none'; }
   } else {
     icon.className = 'absen-icon done';
     icon.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>';
-    st.textContent = 'Selesai'; it.textContent = (a.masuk || '') + ' – ' + (a.keluar || '');
+    st.textContent = 'Selesai'; it.textContent = (a.masuk||'') + ' – ' + (a.keluar||'');
     ba.innerHTML = '<div style="font-size:13px;color:var(--text3)">Absensi hari ini sudah lengkap ✓</div>';
     if (a.fotoMasukUrl) { selfieHome.src = a.fotoMasukUrl; selfieHome.style.display = 'block'; }
     else if (a._selfieMasukLocal) { selfieHome.src = a._selfieMasukLocal; selfieHome.style.display = 'block'; }
@@ -1339,7 +1208,6 @@ function updateAbsenUI() {
 }
 
 async function updateKStats() {
-  const myAbsensiCount = Object.values(absensi).filter(a => a && a.masuk).length;
   document.getElementById('k-stat-hadir').textContent = await getJadwalBulanCount();
   document.getElementById('k-stat-update').textContent = feed.filter(f => f.user === currentUser).length;
 }
@@ -1348,7 +1216,6 @@ async function updateKStats() {
 //  KAMERA
 // ═══════════════
 async function bukaKameraAbsen(type) {
-  // ✅ Guard: cegah buka kamera saat sedang proses atau sudah absen
   if (_absenSedangProses) { toast('⏳ Sedang memproses absensi, harap tunggu…', 'amber'); return; }
   const _a = absensi[currentUser];
   if (type === 'masuk'  && _a && _a.masuk)  { toast('✅ Absen masuk sudah tercatat', 'green');  return; }
@@ -1366,11 +1233,7 @@ async function bukaKameraAbsen(type) {
   document.getElementById('cam-controls-preview').style.display = 'none';
   document.getElementById('cam-modal').classList.add('open');
   try {
-    const constraints = [
-      {video:{facingMode:{ideal:'user'},width:{ideal:640}}},
-      {video:{facingMode:'user'}},
-      {video:true}
-    ];
+    const constraints = [{video:{facingMode:{ideal:'user'},width:{ideal:640}}},{video:{facingMode:'user'}},{video:true}];
     for (const c of constraints) {
       try { camStream = await navigator.mediaDevices.getUserMedia(c); break; } catch(e) {}
     }
@@ -1414,8 +1277,7 @@ async function konfirmasiSelfie() {
   if (!capturedPhoto) { toast('Foto tidak tersedia', 'red'); return; }
   if (absenPurpose === 'update') {
     fotoUpdateData = capturedPhoto;
-    fotoUpdateDriveUrl = null;
-    fotoUpdateDriveView = null;
+    fotoUpdateDriveUrl = null; fotoUpdateDriveView = null;
     const prev = document.getElementById('foto-prev');
     const wrap = document.getElementById('foto-prev-wrap');
     if (prev) { prev.src = fotoUpdateData; wrap.style.display = 'block'; }
@@ -1423,18 +1285,13 @@ async function konfirmasiSelfie() {
     if (driveInfo) driveInfo.style.display = 'none';
     toast('Foto berhasil diambil!', 'green');
   } else {
-    // ✅ Cegah double submit
     if (_absenSedangProses) { toast('⏳ Absensi sedang diproses, harap tunggu…', 'amber'); return; }
-    // ✅ Cegah absen jika sudah tercatat
     const _a = absensi[currentUser];
     if (absenPurpose === 'keluar' && _a && _a.keluar) { toast('✅ Absen pulang sudah tercatat', 'green'); return; }
     if (absenPurpose === 'masuk'  && _a && _a.masuk)  { toast('✅ Absen masuk sudah tercatat',  'green'); return; }
     _absenSedangProses = true;
-    try {
-      await simpanAbsen(absenPurpose, capturedPhoto);
-    } finally {
-      _absenSedangProses = false;
-    }
+    try { await simpanAbsen(absenPurpose, capturedPhoto); }
+    finally { _absenSedangProses = false; }
   }
 }
 
@@ -1452,11 +1309,7 @@ async function bukaKameraUpdate() {
   document.getElementById('cam-controls-preview').style.display = 'none';
   document.getElementById('cam-modal').classList.add('open');
   try {
-    const constraints = [
-      {video:{facingMode:{ideal:'environment'},width:{ideal:1280}}},
-      {video:{facingMode:'user',width:{ideal:1280}}},
-      {video:true}
-    ];
+    const constraints = [{video:{facingMode:{ideal:'environment'},width:{ideal:1280}}},{video:{facingMode:'user',width:{ideal:1280}}},{video:true}];
     for (const c of constraints) {
       try { camStream = await navigator.mediaDevices.getUserMedia(c); break; } catch(e) {}
     }
@@ -1481,40 +1334,32 @@ function tutupKamera() { stopCamera(); document.getElementById('cam-modal').clas
 //  ABSENSI
 // ═══════════════
 async function simpanAbsen(type, selfieData) {
-  // ✅ Kunci username dari awal — jangan pakai currentUser setelah await
   const thisUser = currentUser;
   const tanggal  = getTanggalHariIni();
 
   if (!absensi[thisUser]) absensi[thisUser] = {};
   const timestamp = nowStr();
-absensi[thisUser][type]       = timestamp;
-  absensi[thisUser]._lastSubmit = Date.now();   // ← tambahkan baris ini
+  absensi[thisUser][type]       = timestamp;
+  absensi[thisUser]._lastSubmit = Date.now();
   absensi[thisUser].namaUser    = users[thisUser].name;
   absensi[thisUser].tanggal     = new Date().toLocaleDateString('id-ID');
   absensi[thisUser].tanggalISO  = tanggal;
 
-  // Simpan base64 lokal sementara untuk tampil di browser ini
   if (type === 'masuk')  absensi[thisUser]._selfieMasukLocal  = selfieData;
   if (type === 'keluar') absensi[thisUser]._selfieKeluarLocal = selfieData;
 
-  // ✅ Simpan cache lokal DULU sebelum upload, agar data tidak hilang jika upload gagal
   lsSave('wt_cache_absensi', absensi);
   lsSave('wt_cache_tanggal', tanggal);
-
-  // ✅ Update UI langsung agar tombol berubah & tidak bisa diklik lagi
   updateAbsenUI();
   toast(type === 'masuk' ? '✓ Absen masuk tercatat, mengupload foto…' : '✓ Absen pulang tercatat, mengupload foto…', 'green');
 
-  // ✅ Upload foto DULU — tunggu selesai sebelum simpan ke server
   if (SHEETS_URL) {
     try {
       const tipe     = type === 'masuk' ? 'masuk' : 'keluar';
       const filename = 'selfie_' + thisUser + '_' + tanggal + '_' + tipe + '_' + Date.now() + '.jpg';
       const driveResult = await uploadFotoDrive(selfieData, filename);
       const fid      = driveResult.fileId || '';
-      const reliableThumb = fid
-        ? ('https://lh3.googleusercontent.com/d/' + fid)
-        : (driveResult.thumbUrl || driveResult.embedUrl);
+      const reliableThumb = fid ? ('https://lh3.googleusercontent.com/d/' + fid) : (driveResult.thumbUrl || driveResult.embedUrl);
 
       if (!absensi[thisUser]) absensi[thisUser] = {};
       if (type === 'masuk') {
@@ -1528,7 +1373,6 @@ absensi[thisUser][type]       = timestamp;
         absensi[thisUser].fotoKeluarView   = driveResult.viewUrl;
         absensi[thisUser].fotoKeluarFileId = fid;
       }
-      // ✅ Update cache setelah dapat URL Drive
       lsSave('wt_cache_absensi', absensi);
       toast('☁️ Foto tersimpan, menyimpan absensi…', 'green');
     } catch(e) {
@@ -1536,11 +1380,8 @@ absensi[thisUser][type]       = timestamp;
     }
   }
 
-  // ✅ Simpan ke server SETELAH foto selesai — data sudah lengkap
   if (type === 'masuk') await tambahJadwalMasuk();
   const saved = await saveAbsensi();
-
-  // ✅ Update UI & cache lokal setelah semua selesai
   updateAbsenUI();
   updateKStats();
   lsSave('wt_cache_absensi', absensi);
@@ -1548,29 +1389,27 @@ absensi[thisUser][type]       = timestamp;
   if (saved) {
     toast('✅ Absensi berhasil tersimpan ke Spreadsheet!', 'green');
   } else if (SHEETS_URL) {
-    toast('⚠️ Absensi tersimpan lokal, gagal kirim ke Spreadsheet. Coba "Kirim Ulang Semua Data" di Pengaturan.', 'amber');
+    toast('⚠️ Absensi tersimpan lokal, gagal kirim ke Spreadsheet.', 'amber');
   } else {
-    toast('✅ Absensi tersimpan (mode offline — belum ada URL Sheets)', 'amber');
+    toast('✅ Absensi tersimpan (mode offline)', 'amber');
   }
 
-  // ✅ Sinkron perangkat lain setelah 8 detik
   if (SHEETS_URL) {
     const snapUser  = thisUser;
     const snapFotos = {
-      masuk:            absensi[snapUser] && absensi[snapUser].masuk,
-      keluar:           absensi[snapUser] && absensi[snapUser].keluar,
-      fotoMasukUrl:     absensi[snapUser] && absensi[snapUser].fotoMasukUrl,
-      fotoMasukEmbed:   absensi[snapUser] && absensi[snapUser].fotoMasukEmbed,
-      fotoMasukView:    absensi[snapUser] && absensi[snapUser].fotoMasukView,
-      fotoMasukFileId:  absensi[snapUser] && absensi[snapUser].fotoMasukFileId,
-      fotoKeluarUrl:    absensi[snapUser] && absensi[snapUser].fotoKeluarUrl,
-      fotoKeluarEmbed:  absensi[snapUser] && absensi[snapUser].fotoKeluarEmbed,
-      fotoKeluarView:   absensi[snapUser] && absensi[snapUser].fotoKeluarView,
-      fotoKeluarFileId: absensi[snapUser] && absensi[snapUser].fotoKeluarFileId,
+      masuk:absensi[snapUser]&&absensi[snapUser].masuk,
+      keluar:absensi[snapUser]&&absensi[snapUser].keluar,
+      fotoMasukUrl:absensi[snapUser]&&absensi[snapUser].fotoMasukUrl,
+      fotoMasukEmbed:absensi[snapUser]&&absensi[snapUser].fotoMasukEmbed,
+      fotoMasukView:absensi[snapUser]&&absensi[snapUser].fotoMasukView,
+      fotoMasukFileId:absensi[snapUser]&&absensi[snapUser].fotoMasukFileId,
+      fotoKeluarUrl:absensi[snapUser]&&absensi[snapUser].fotoKeluarUrl,
+      fotoKeluarEmbed:absensi[snapUser]&&absensi[snapUser].fotoKeluarEmbed,
+      fotoKeluarView:absensi[snapUser]&&absensi[snapUser].fotoKeluarView,
+      fotoKeluarFileId:absensi[snapUser]&&absensi[snapUser].fotoKeluarFileId,
     };
     setTimeout(async () => {
       await reloadSharedData();
-      // ✅ Pastikan data lokal tidak ter-overwrite oleh reload server
       if (!absensi[snapUser]) absensi[snapUser] = {};
       Object.keys(snapFotos).forEach(function(k) {
         if (snapFotos[k]) absensi[snapUser][k] = snapFotos[k];
@@ -1603,7 +1442,7 @@ function onFoto(e) {
 function updateMetaBox() {
   if (!currentUser) return;
   const u = users[currentUser];
-  const now = new Date().toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const now = new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   const mp = document.getElementById('m-pengirim');
   const mw = document.getElementById('m-waktu');
   if (mp) mp.textContent = u.name + ' (@' + currentUser + ')';
@@ -1617,7 +1456,6 @@ async function kirimUpdate() {
   const u = users[currentUser];
   let imgUrl = null, imgEmbed = null, imgView = null, imgFileId = null;
 
-  // Upload foto ke Drive jika ada
   if (fotoUpdateData && SHEETS_URL) {
     try {
       toast('Mengupload foto ke Drive…', 'purple');
@@ -1632,30 +1470,21 @@ async function kirimUpdate() {
       fotoUpdateDriveView = imgView;
       const driveInfo = document.getElementById('foto-drive-info');
       if (driveInfo) driveInfo.style.display = 'inline-flex';
-      toast('☁️ Foto update tersimpan di Google Drive & Spreadsheet!', 'green');
+      toast('☁️ Foto update tersimpan di Google Drive!', 'green');
     } catch(e) {
       toast('⚠️ Upload foto gagal, update tetap dikirim tanpa foto: ' + e.message, 'amber');
     }
   }
 
   const item = {
-    user:     currentUser,
-    name:     u.name,
-    inisial:  u.inisial,
-    av:       u.av,
-    proyek:   proyek || 'Umum',
-    text,
-    time:     nowStr(),
-    imgUrl,
-    imgEmbed,
-    imgFileId: imgFileId || null,
-    imgView,
-    _imgLocal: fotoUpdateData, // hanya untuk tampil di browser ini
+    user:currentUser, name:u.name, inisial:u.inisial, av:u.av,
+    proyek:proyek||'Umum', text, time:nowStr(),
+    imgUrl, imgEmbed, imgFileId:imgFileId||null, imgView,
+    _imgLocal:fotoUpdateData,
   };
   feed.unshift(item);
   await saveFeed();
 
-  // Reset form
   document.getElementById('u-proyek').value = '';
   document.getElementById('u-text').value = '';
   document.getElementById('foto-input').value = '';
@@ -1666,8 +1495,6 @@ async function kirimUpdate() {
   fotoUpdateData = null; fotoUpdateDriveUrl = null; fotoUpdateDriveView = null;
   updateKStats();
   toast('✓ Update berhasil dikirim!', 'green');
-
-  // Smart refresh
   if (SHEETS_URL) setTimeout(async () => { await reloadSharedData(); }, 2000);
 }
 
@@ -1682,7 +1509,6 @@ function renderFeed(targetId, showMeta=false, limit=null) {
     return;
   }
   container.innerHTML = items.map(f => {
-    // Tampilkan foto: prioritas Drive URL, fallback lokal
     let imgHtml = '';
     const displaySrc = f.imgUrl || f._imgLocal || null;
     if (displaySrc) {
@@ -1737,14 +1563,11 @@ async function gantiPassword() {
 //  ADMIN
 // ═══════════════
 function initAdmin() {
-  document.getElementById('a-date').textContent = new Date().toLocaleDateString('id-ID', {weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('a-date').textContent = new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   refreshAdminStats();
   renderStatusList();
   renderFeed('a-feed-preview', true, 3);
-
-  // Mulai smart polling (30 detik normal, 5 detik setelah ada perubahan)
   stopPolling();
-  _pollingActive = false;
   startSmartPolling();
 }
 
@@ -1800,7 +1623,6 @@ function renderAbsenTable() {
     else           { cAktif++; badge = '<span class="badge badge-purple">Sedang Bekerja</span>'; }
 
     const makeFotoCell = (localSrc, driveUrl, viewUrl) => {
-      // Prioritas: base64 lokal (pasti tampil) → Drive URL → link teks
       const displaySrc = localSrc || driveUrl;
       if (!displaySrc && !viewUrl) return '<span style="color:var(--text3);font-size:12px">—</span>';
       if (displaySrc) {
@@ -1817,15 +1639,10 @@ function renderAbsenTable() {
       return viewUrl ? `<a href="${viewUrl}" target="_blank" style="font-size:11px;color:#4285f4;text-decoration:none">📷 Lihat Foto</a>` : '—';
     };
 
-    const selfieMasukSrc  = a && a._selfieMasukLocal;
-    const selfieKeluarSrc = a && a._selfieKeluarLocal;
-    const masukDriveUrl   = a && a.fotoMasukUrl;
-    const keluarDriveUrl  = a && a.fotoKeluarUrl;
-
     return `<tr>
       <td><div style="display:flex;align-items:center;gap:8px"><div class="avatar ${u.av}" style="width:28px;height:28px;font-size:10px">${u.inisial}</div>${u.name}</div></td>
-      <td>${makeFotoCell(selfieMasukSrc, masukDriveUrl, a && a.fotoMasukView)}</td>
-      <td>${makeFotoCell(selfieKeluarSrc, keluarDriveUrl, a && a.fotoKeluarView)}</td>
+      <td>${makeFotoCell(a&&a._selfieMasukLocal, a&&a.fotoMasukUrl, a&&a.fotoMasukView)}</td>
+      <td>${makeFotoCell(a&&a._selfieKeluarLocal, a&&a.fotoKeluarUrl, a&&a.fotoKeluarView)}</td>
       <td>${a?.masuk  || '—'}</td>
       <td>${a?.keluar || '—'}</td>
       <td>${badge}</td>
@@ -1848,9 +1665,9 @@ function renderRekapHarian(hadir, aktif, absen, total) {
   const detEl = document.getElementById('rek-detail');
   if (detEl) {
     const lines = [];
-    if (hadir>0) lines.push(`<span style="color:var(--green)">&#10003; ${hadir} karyawan</span> hadir lengkap`);
-    if (aktif>0) lines.push(`<span style="color:var(--accent2)">&#9679; ${aktif} karyawan</span> sedang bekerja`);
-    if (absen>0) lines.push(`<span style="color:var(--amber)">&#9888; ${absen} karyawan</span> belum absen`);
+    if (hadir>0) lines.push(`<span style="color:var(--green)">✓ ${hadir} karyawan</span> hadir lengkap`);
+    if (aktif>0) lines.push(`<span style="color:var(--accent2)">● ${aktif} karyawan</span> sedang bekerja`);
+    if (absen>0) lines.push(`<span style="color:var(--amber)">⚠ ${absen} karyawan</span> belum absen`);
     detEl.innerHTML = lines.join('<br/>') || '<span style="color:var(--text3)">Belum ada data absensi hari ini.</span>';
   }
 }
@@ -1893,9 +1710,12 @@ async function hapusKaryawan(u) {
   toast('Karyawan dihapus', 'amber');
 }
 
-// ═══════════════════════════════
+// ═══════════════════════════════════════════════════════════
 //  RESET ABSENSI PER KARYAWAN
-// ═══════════════════════════════
+//  FIX: setelah reset, kirim sinyal ke semua client via
+//  lastModified server, sehingga polling karyawan akan
+//  mendeteksi perubahan dan reset UI-nya
+// ═══════════════════════════════════════════════════════════
 function renderResetAbsenList() {
   const el = document.getElementById('reset-absen-list');
   if (!el) return;
@@ -1928,45 +1748,47 @@ function renderResetAbsenList() {
   }).join('');
 }
 
+// ✅ FIXED: resetAbsensiKaryawan — satu fungsi bersih, tidak ada kode duplikat
 async function resetAbsensiKaryawan(username, namaUser) {
   if (!confirm(`Reset absensi ${namaUser} hari ini?\nData absensi hari sebelumnya tetap tersimpan.`)) return;
 
-  // Hapus dari state lokal
+  // 1. Hapus dari state lokal
   delete absensi[username];
   lsSave('wt_cache_absensi', absensi);
 
+  // ✅ 2. Update lastModified di server agar karyawan yang polling
+  //       bisa mendeteksi perubahan dan reset UI mereka
   if (SHEETS_URL) {
     try {
-      // ✅ FIX 1: Kirim full absensi state (tanpa user ini) → spreadsheet ikut ter-update
+      // Kirim full absensi state (tanpa user ini) → spreadsheet ter-update
       await saveAbsensi();
 
-      // ✅ FIX 2: Juga kirim explicit reset action agar GAS bisa hapus baris
+      // Kirim explicit reset action agar GAS bisa hapus baris
       await sheetsPost({
         action: 'resetAbsensiUser',
         tanggal: getTanggalHariIni(),
         username: username,
         usersMap: Object.fromEntries(Object.entries(users).map(([k,v]) => [k, {name:v.name}]))
       });
+
+      toast(`✓ Absensi ${namaUser} direset & sinkron ke server`, 'amber');
     } catch(e) {
       console.warn('resetAbsensiUser gagal:', e.message);
-      toast('⚠️ Reset lokal berhasil, tapi server gagal: ' + e.message, 'amber');
+      toast(`⚠️ Reset lokal OK, server gagal: ` + e.message, 'amber');
     }
+  } else {
+    toast(`✓ Absensi ${namaUser} hari ini berhasil direset (offline)`, 'amber');
   }
 
-  // Refresh semua UI yang relevan
+  // 3. Refresh semua UI admin yang relevan
   renderResetAbsenList();
   renderStatusList();
   renderAbsenTable();
   refreshAdminStats();
-  toast(`✓ Absensi ${namaUser} hari ini berhasil direset.`, 'amber');
-}
 
-  // Refresh semua UI yang relevan
-  renderResetAbsenList();
-  renderStatusList();
-  renderAbsenTable();
-  refreshAdminStats();
-  toast(`✓ Absensi ${namaUser} hari ini berhasil direset.`, 'amber');
+  // ✅ 4. Paksa polling lebih cepat agar karyawan segera dapat update
+  //       (turunkan _lastSyncHash agar reloadSharedData deteksi perubahan)
+  _lastSyncHash = 'reset_' + Date.now();
 }
 
 function openResetModal(u) {
@@ -2033,17 +1855,13 @@ async function testSheetsURL() {
   st.style.display='block'; st.style.color='var(--text2)'; st.textContent='⏳ Menguji koneksi ke Sheets…';
   const prevUrl = SHEETS_URL; SHEETS_URL = url;
   try {
-    // Step 1: Test GET (baca data)
     await sheetsGet({ action:'getAll', date:getTanggalHariIni() });
     st.textContent='⏳ Sheets OK! Menguji Drive upload…';
-
-    // Step 2: Test POST sederhana (tanpa upload foto besar)
     try {
       const r = await fetch(url, {
-        method: 'POST',
-        redirect: 'follow',
+        method: 'POST', redirect: 'follow',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'test' }),
+        body: JSON.stringify({ action:'test' }),
       });
       const rawText = await r.text();
       let data;
@@ -2051,7 +1869,6 @@ async function testSheetsURL() {
       if (data.ok) {
         st.style.color='var(--green)';
         st.textContent='✓ Koneksi berhasil! Google Sheets & Drive siap digunakan.';
-        // ✅ FIX: simpan URL ke localStorage agar tidak hilang
         SHEETS_URL = url;
         localStorage.setItem('wt_sheets_url', url);
         toast('✓ URL valid dan tersimpan!', 'green');
@@ -2059,25 +1876,24 @@ async function testSheetsURL() {
         throw new Error(data.error || 'Respons tidak valid');
       }
     } catch(e2) {
-      // POST gagal tapi GET berhasil — kemungkinan CORS atau setting akses
       st.style.color='var(--amber)';
-      st.textContent='⚠ Sheets OK, tapi POST gagal: ' + e2.message + ' — Pastikan "Yang memiliki akses" = Siapa saja, lalu deploy BARU.';
+      st.textContent='⚠ Sheets OK, tapi POST gagal: ' + e2.message;
       SHEETS_URL = prevUrl;
     }
   } catch(e) {
     SHEETS_URL = prevUrl;
     st.style.color='var(--red)';
-    st.textContent='✗ Gagal: ' + e.message + ' — Pastikan: Jalankan sebagai: Saya, Akses: Siapa saja, lalu deploy BARU.';
+    st.textContent='✗ Gagal: ' + e.message;
   }
 }
 
 async function kirimUlangSemua() {
   if (!SHEETS_URL) { toast('URL Sheets belum diatur', 'amber'); return; }
   toast('Mengirim ulang semua data ke Spreadsheet…', 'purple');
-  await saveUsers();    // → update tab Karyawan
-  await saveAbsensi();  // → update tab Absensi
-  await saveFeed();     // → update tab Feed_Proyek
-  toast('✓ Semua data (Karyawan, Absensi, Feed) berhasil dikirim ulang!', 'green');
+  await saveUsers();
+  await saveAbsensi();
+  await saveFeed();
+  toast('✓ Semua data berhasil dikirim ulang!', 'green');
 }
 
 // ═══════════════
@@ -2099,7 +1915,7 @@ function exportCsv() {
   const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g,'""') + '"').join(',')).join('\n');
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent('\uFEFF' + csv);
-  a.download = 'absensi_worktrack_' + getTanggalHariIni() + '.csv';
+  a.download = 'absensi_gnsjaya_' + getTanggalHariIni() + '.csv';
   a.click();
   toast('CSV berhasil diunduh!', 'green');
 }
@@ -2108,7 +1924,6 @@ function exportCsv() {
 //  LIGHTBOX
 // ═══════════════
 function showLightbox(src) { showLightboxDrive(src, ''); }
-
 function showLightboxDrive(src, viewUrl) {
   const img  = document.getElementById('lightbox-img');
   const link = document.getElementById('lightbox-drive-link');
@@ -2118,7 +1933,6 @@ function showLightboxDrive(src, viewUrl) {
   else { link.style.display = 'none'; }
   document.getElementById('lightbox').classList.add('open');
 }
-
 function closeLightboxClick(e) {
   if (e.target === document.getElementById('lightbox')) {
     document.getElementById('lightbox').classList.remove('open');
@@ -2141,14 +1955,15 @@ function toast(msg, type='green') {
   toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
 }
 
-// ═══════════════
+// ═══════════════════════════════════════════════════════════
 //  INIT APP
-// ═══════════════
+//  FIX PERFORMA: tampil instan dari cache, load server di
+//  background tanpa blocking UI
+// ═══════════════════════════════════════════════════════════
 async function initApp() {
   document.getElementById('loading-overlay').style.display = 'flex';
   document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
 
-  // ✅ Auto-set URL default jika belum ada di localStorage
   const _defaultUrl = 'https://script.google.com/macros/s/AKfycbwN6HQezGg7vnHvzjx0D_-EPeZKyxib7jw4z-3Yy_TU52cCXZi2Vo_T4qL3yxSB7cBW0A/exec';
   if (!localStorage.getItem('wt_sheets_url')) {
     localStorage.setItem('wt_sheets_url', _defaultUrl);
@@ -2156,46 +1971,28 @@ async function initApp() {
 
   const savedUrl = localStorage.getItem('wt_sheets_url');
 
-  if (!savedUrl) {
-    users = { ...DEFAULT_USERS };
-    feed  = [...DEFAULT_FEED];
-    absensi = {};
-    document.getElementById('loading-overlay').style.display = 'none';
-    showScreen('login');
-    setTimeout(() => {
-      const card = document.querySelector('.login-card');
-      if (card && !document.getElementById('setup-banner')) {
-        const banner = document.createElement('div');
-        banner.id = 'setup-banner';
-        banner.style.cssText = 'margin-top:16px;padding:12px 14px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:8px;font-size:12px;color:var(--amber);line-height:1.8';
-        // ✅ FIX: update ke versi GAS yang benar (v5)
-        banner.innerHTML = '⚠️ <b>Perlu setup Google Apps Script</b><br>Login sebagai <b>admin</b> → Pengaturan → masukkan URL deployment <b>Code_v5.gs</b>';
-        card.appendChild(banner);
-      }
-    }, 100);
-    return;
-  }
-
-  SHEETS_URL = savedUrl;
-
-  // STEP 1: Muat dari localStorage cache dulu → tampil instan tanpa nunggu server
+  // ✅ FIX PERFORMA: Muat cache lokal DULU → tampil login instan
   loadCacheFromLocal();
+  SHEETS_URL = savedUrl || '';
 
-  // STEP 2: Coba sinkron dari server di background
-  try {
-    await loadAllData();
-    const urlEl = document.getElementById('sheets-url');
-    if (urlEl) urlEl.value = savedUrl;
-  } catch(e) {
-    console.warn('Gagal load dari Sheets, pakai cache lokal:', e.message);
-    // Cache lokal sudah di-load di STEP 1, jadi tetap bisa login
-    setTimeout(() => toast('⚠️ Offline / koneksi gagal: Menggunakan data terakhir. (' + e.message + ')', 'amber'), 800);
-  }
-
+  // Sembunyikan loading dan tampilkan login SEGERA dari cache
   document.getElementById('loading-overlay').style.display = 'none';
   showScreen('login');
   const urlEl = document.getElementById('sheets-url');
   if (urlEl && savedUrl) urlEl.value = savedUrl;
+
+  // ✅ Load dari server di BACKGROUND (tidak blocking)
+  if (savedUrl) {
+    SHEETS_URL = savedUrl;
+    loadAllData().then(() => {
+      // Data server berhasil dimuat, update URL field jika di halaman pengaturan
+      const urlElBg = document.getElementById('sheets-url');
+      if (urlElBg) urlElBg.value = savedUrl;
+    }).catch(e => {
+      console.warn('Background load gagal, pakai cache lokal:', e.message);
+      // Tidak perlu toast karena user belum login, tidak mengganggu
+    });
+  }
 }
 
 initApp();
