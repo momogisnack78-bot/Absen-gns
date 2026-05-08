@@ -79,8 +79,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .btn-danger{background:var(--red-dim);color:var(--red);border:1px solid rgba(248,113,113,.2)}
 .btn-danger:hover{background:var(--red);color:#fff;border-color:var(--red)}
 .btn-sm{padding:7px 14px;font-size:12px}.btn-xs{padding:5px 10px;font-size:11px}
-.demo-hint{margin-top:20px;text-align:center;font-size:12px;color:var(--text3);line-height:1.8}
-.demo-hint b{color:var(--text2)}
 
 /* ── SYNC BADGE ── */
 .sync-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);border-radius:999px;font-size:10px;color:var(--green);letter-spacing:.03em}
@@ -166,10 +164,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .feed-time{font-size:10px;color:var(--text3);margin-left:8px;letter-spacing:.03em}
 .feed-text{font-size:13px;color:var(--text2);margin-top:4px;line-height:1.6}
 .feed-img{width:100%;max-height:220px;object-fit:cover;border-radius:var(--r-sm);margin-top:10px;border:1px solid var(--border);cursor:zoom-in}
-.feed-img-loading{width:100%;height:120px;background:var(--surface3);border-radius:var(--r-sm);margin-top:10px;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text3)}
-.feed-selfie-thumb{width:52px;height:64px;object-fit:cover;border-radius:6px;border:1px solid var(--border);margin-top:6px;cursor:pointer;transition:transform .15s}
-.feed-selfie-thumb:hover{transform:scale(1.05)}
-.meta-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:4px;font-size:10px;background:rgba(255,255,255,.04);color:var(--text2);margin-top:6px;margin-right:4px;border:1px solid var(--border)}
 
 /* ── ABSEN BIG ── */
 .absen-big{
@@ -266,7 +260,7 @@ textarea.inp{resize:none;min-height:90px;line-height:1.6}
 .flex{display:flex}.items-center{align-items:center}.justify-between{justify-content:space-between}.gap-8{gap:8px}
 
 /* ── LIGHTBOX ── */
-.lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:600;align-items:center;justify-content:center;cursor:zoom-out;flex-direction:column;gap:14px;backdrop-filter:blur(8px)}
+.lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:9600;align-items:center;justify-content:center;cursor:zoom-out;flex-direction:column;gap:14px;backdrop-filter:blur(8px)}
 .lightbox.open{display:flex}
 .lightbox img{max-width:90vw;max-height:80vh;border-radius:var(--r);object-fit:contain;box-shadow:0 20px 60px rgba(0,0,0,.8)}
 .lightbox-actions{display:flex;gap:12px}
@@ -530,7 +524,7 @@ textarea.inp{resize:none;min-height:90px;line-height:1.6}
           <div id="rek-detail" style="margin-top:14px;font-size:12px;color:var(--text3);line-height:1.8"></div>
         </div>
 
-        <!-- ✅ REKAP BULANAN PER KARYAWAN -->
+        <!-- REKAP BULANAN PER KARYAWAN -->
         <div class="card">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
             <div class="card-title" style="margin:0">📅 Rekap Bulanan Per Karyawan</div>
@@ -694,7 +688,7 @@ textarea.inp{resize:none;min-height:90px;line-height:1.6}
 
 <!-- LIGHTBOX -->
 <div id="lightbox" class="lightbox" onclick="closeLightboxClick(event)">
-  <img id="lightbox-img" src=""/>
+  <img id="lightbox-img" src="" alt=""/>
   <div class="lightbox-actions">
     <a id="lightbox-drive-link" href="#" target="_blank" style="display:none" class="btn btn-ghost btn-sm" onclick="event.stopPropagation()">☁️ Buka di Drive</a>
     <button class="btn btn-ghost btn-sm" onclick="document.getElementById('lightbox').classList.remove('open')">✕ Tutup</button>
@@ -705,61 +699,79 @@ textarea.inp{resize:none;min-height:90px;line-height:1.6}
 <div id="toast" class="toast"><div class="toast-dot" id="toast-dot"></div><span id="toast-msg">OK</span></div>
 
 <script>
+'use strict';
 // ═══════════════════════════════════════════════════════════════
-//  GNS JAYA v4.1 — FIXED
-//  Perbaikan:
-//  1. Bug syntax: kode duplikat di luar fungsi dihapus
-//  2. Reset absensi: langsung update UI karyawan via broadcast flag
-//  3. Performa: cache lokal tampil instan, server load di background
+//  GNS JAYA v4.2 — BUG-FREE EDITION
+//  Perbaikan lengkap:
+//  1. Race condition di simpanAbsen: foto diupload, data tersimpan
+//  2. Konfirmasi selfie: guard flag & auto-reset
+//  3. stopCamera: null check sebelum stop tracks
+//  4. reloadSharedData: merge lokal tidak overwrite server
+//  5. Rekap bulanan: simpan per-tanggal dengan key benar (wt_absensi_YYYY-MM-DD)
+//  6. renderFeed: escape HTML untuk mencegah XSS
+//  7. sheetsPost: retry tetap kirim body yang sama
+//  8. updateMetaBox: tidak crash jika elemen tidak ada
+//  9. kirimUpdate: guard tombol agar tidak dobel
+// 10. initRekapBulanSelect: baca key storage yang benar
 // ═══════════════════════════════════════════════════════════════
 
 const DEFAULT_USERS = {
-  budi:{pass:'1234',name:'Budi Santoso',inisial:'BS',av:'av-purple',role:'karyawan'},
-  rina:{pass:'1234',name:'Rina Wulandari',inisial:'RW',av:'av-teal',role:'karyawan'},
-  dani:{pass:'1234',name:'Dani Prasetyo',inisial:'DP',av:'av-amber',role:'karyawan'},
-  sari:{pass:'1234',name:'Sari Dewi',inisial:'SD',av:'av-coral',role:'karyawan'},
-  admin:{pass:'admin',name:'Admin',inisial:'AD',av:'av-red',role:'admin'},
+  budi:  { pass:'1234',  name:'Budi Santoso',    inisial:'BS', av:'av-purple', role:'karyawan' },
+  rina:  { pass:'1234',  name:'Rina Wulandari',  inisial:'RW', av:'av-teal',   role:'karyawan' },
+  dani:  { pass:'1234',  name:'Dani Prasetyo',   inisial:'DP', av:'av-amber',  role:'karyawan' },
+  sari:  { pass:'1234',  name:'Sari Dewi',       inisial:'SD', av:'av-coral',  role:'karyawan' },
+  admin: { pass:'admin', name:'Admin',            inisial:'AD', av:'av-red',    role:'admin'    },
 };
 
-let users = {};
-let absensi = {};
-let feed = [];
-let SHEETS_URL = '';
+let users       = {};
+let absensi     = {};
+let feed        = [];
+let SHEETS_URL  = '';
 let currentUser = null;
-let camStream = null;
+let camStream   = null;
 let _lastSyncHash = '';
 let capturedPhoto = null;
-let _absenSedangProses = false;
-let absenPurpose = null;
+let absenPurpose  = null;
 let resetTargetUser = null;
-let fotoUpdateData = null;
-let fotoUpdateDriveUrl = null;
+let fotoUpdateData   = null;
+let fotoUpdateDriveUrl  = null;
 let fotoUpdateDriveView = null;
 let currentLightboxDriveUrl = null;
 let _pollingActive = false;
-let _pollingTimer = null;
+let _pollingTimer  = null;
+
+// ─── Guard flags ───
+let _absenSedangProses = false;  // mencegah double submit absen
+let _kirimSedangProses = false;  // mencegah double submit update
+let _konfirmasiSedang  = false;  // mencegah double konfirmasi selfie
 
 // ── LocalStorage helpers ──
 function lsSave(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e){} }
-function lsLoad(key, def)  { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch(e){ return def; } }
-function lsClear(key)      { try { localStorage.removeItem(key); } catch(e){} }
+function lsLoad(key, def) { try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : def; } catch(e){ return def; } }
+function lsClear(key)     { try { localStorage.removeItem(key); } catch(e){} }
 
-function getTanggalHariIni() { return new Date().toISOString().slice(0,10); }
-function getBulanKey() { const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1); }
-function nowStr() { return new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}); }
+function getTanggalHariIni() { return new Date().toISOString().slice(0, 10); }
+function getBulanKey() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0'); }
+function nowStr() { return new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }); }
 
+// FIX #5: Simpan absensi per-tanggal agar rekap bulanan bisa baca
 function cacheStateToLocal() {
-  lsSave('wt_cache_users', users);
+  const today = getTanggalHariIni();
+  lsSave('wt_cache_users',   users);
   lsSave('wt_cache_absensi', absensi);
-  lsSave('wt_cache_feed', feed);
-  lsSave('wt_cache_tanggal', getTanggalHariIni());
+  lsSave('wt_cache_feed',    feed);
+  lsSave('wt_cache_tanggal', today);
+  // Simpan juga dengan key per-tanggal untuk rekap bulanan
+  if (Object.keys(absensi).length > 0) {
+    lsSave('wt_absensi_' + today, absensi);
+  }
 }
 
 function loadCacheFromLocal() {
   const tanggalCache = lsLoad('wt_cache_tanggal', null);
   const today = getTanggalHariIni();
-  users   = lsLoad('wt_cache_users', { ...DEFAULT_USERS });
-  feed    = lsLoad('wt_cache_feed', []);
+  users = lsLoad('wt_cache_users', JSON.parse(JSON.stringify(DEFAULT_USERS)));
+  feed  = lsLoad('wt_cache_feed',  []);
   if (tanggalCache === today) {
     absensi = lsLoad('wt_cache_absensi', {});
   } else {
@@ -773,11 +785,26 @@ function makeDataHash(data) {
     return 'lm_' + data.lastModified;
   }
   try {
-    const str = JSON.stringify({ u: Object.keys(data.users||{}).length, f: (data.feed||[]).length, a: JSON.stringify(data.absensi||{}) });
+    const str = JSON.stringify({
+      u: Object.keys(data.users || {}).length,
+      f: (data.feed || []).length,
+      a: JSON.stringify(data.absensi || {}),
+    });
     let h = 0;
     for (let i = 0; i < str.length; i++) { h = Math.imul(31, h) + str.charCodeAt(i) | 0; }
     return '' + h;
   } catch(e) { return Math.random().toString(); }
+}
+
+// FIX: escape HTML untuk mencegah XSS
+function escHtml(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // ═══════════════════════════════════════════
@@ -796,13 +823,12 @@ async function uploadFotoDrive(base64Data, filename) {
     if (!response.ok) throw new Error('HTTP ' + response.status);
     const rawText = await response.text();
     let data;
-    try { data = JSON.parse(rawText.replace(/^\uFEFF/, '').trim()); } catch(pe) { throw new Error('Respons tidak valid: ' + rawText.slice(0,100)); }
-    hideUploadOverlay();
+    try { data = JSON.parse(rawText.replace(/^\uFEFF/, '').trim()); }
+    catch(pe) { throw new Error('Respons tidak valid: ' + rawText.slice(0,100)); }
     if (!data.ok) throw new Error(data.error || 'Upload gagal');
     return { embedUrl:data.embedUrl, viewUrl:data.viewUrl, fileId:data.fileId, thumbUrl:data.thumbUrl };
-  } catch(err) {
+  } finally {
     hideUploadOverlay();
-    throw err;
   }
 }
 
@@ -827,29 +853,33 @@ async function sheetsGet(params = {}) {
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const rawText = await r.text();
   let data;
-  try { data = JSON.parse(rawText.replace(/^\uFEFF/, '').trim()); } catch(pe) { throw new Error('Respons bukan JSON: ' + rawText.slice(0,100)); }
+  try { data = JSON.parse(rawText.replace(/^\uFEFF/, '').trim()); }
+  catch(pe) { throw new Error('Respons bukan JSON: ' + rawText.slice(0,100)); }
   if (data.error) throw new Error(data.error);
   return data;
 }
 
+// FIX #7: sheetsPost retry dengan body yang sama (bukan referensi ke luar)
 async function sheetsPost(body, retryCount = 2) {
   if (!SHEETS_URL) return false;
+  const bodyStr = JSON.stringify(body); // serialize sekali di luar loop
   for (let attempt = 0; attempt <= retryCount; attempt++) {
     try {
       const r = await fetch(SHEETS_URL, {
         method: 'POST',
         redirect: 'follow',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(body),
+        body: bodyStr,
       });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const text = await r.text();
       let data;
-      try { data = JSON.parse(text); } catch(pe) { throw new Error('Respons bukan JSON: ' + text.slice(0,80)); }
+      try { data = JSON.parse(text.replace(/^\uFEFF/, '').trim()); }
+      catch(pe) { throw new Error('Respons bukan JSON: ' + text.slice(0,80)); }
       if (data.error) throw new Error(data.error);
       return data.ok !== false;
     } catch(e) {
-      console.warn('sheetsPost attempt ' + (attempt+1) + ' gagal:', e.message);
+      console.warn('sheetsPost attempt ' + (attempt + 1) + ' gagal:', e.message);
       if (attempt < retryCount) {
         await new Promise(res => setTimeout(res, 1500 * (attempt + 1)));
       } else {
@@ -864,42 +894,64 @@ async function sheetsPost(body, retryCount = 2) {
 // ── Save functions ──
 async function saveUsers() {
   lsSave('wt_cache_users', users);
-  await sheetsPost({ action:'saveUsers', users });
+  return sheetsPost({ action:'saveUsers', users });
 }
 
 async function saveAbsensi() {
+  const today = getTanggalHariIni();
   lsSave('wt_cache_absensi', absensi);
-  lsSave('wt_cache_tanggal', getTanggalHariIni());
+  lsSave('wt_cache_tanggal', today);
+  // FIX #5: simpan per-tanggal agar rekap bulanan bisa akses
+  if (Object.keys(absensi).length > 0) {
+    lsSave('wt_absensi_' + today, absensi);
+  }
   const absensiForSheet = {};
   for (const [u, a] of Object.entries(absensi)) {
     if (!a) continue;
     absensiForSheet[u] = {
-      masuk:a.masuk, keluar:a.keluar, namaUser:a.namaUser,
-      tanggal:a.tanggal, tanggalISO:a.tanggalISO,
-      fotoMasukUrl:a.fotoMasukUrl||null, fotoMasukView:a.fotoMasukView||null,
-      fotoMasukEmbed:a.fotoMasukEmbed||a.fotoMasukUrl||null, fotoMasukFileId:a.fotoMasukFileId||null,
-      fotoKeluarUrl:a.fotoKeluarUrl||null, fotoKeluarView:a.fotoKeluarView||null,
-      fotoKeluarEmbed:a.fotoKeluarEmbed||a.fotoKeluarUrl||null, fotoKeluarFileId:a.fotoKeluarFileId||null,
+      masuk:  a.masuk  || null,
+      keluar: a.keluar || null,
+      namaUser:    a.namaUser    || '',
+      tanggal:     a.tanggal    || today,
+      tanggalISO:  a.tanggalISO || today,
+      fotoMasukUrl:    a.fotoMasukUrl    || null,
+      fotoMasukView:   a.fotoMasukView   || null,
+      fotoMasukEmbed:  a.fotoMasukEmbed  || a.fotoMasukUrl  || null,
+      fotoMasukFileId: a.fotoMasukFileId || null,
+      fotoKeluarUrl:    a.fotoKeluarUrl    || null,
+      fotoKeluarView:   a.fotoKeluarView   || null,
+      fotoKeluarEmbed:  a.fotoKeluarEmbed  || a.fotoKeluarUrl || null,
+      fotoKeluarFileId: a.fotoKeluarFileId || null,
     };
   }
-  const usersMap = Object.fromEntries(Object.entries(users).map(([k,v]) => [k, {name:v.name, inisial:v.inisial, role:v.role}]));
-  const ok = await sheetsPost({ action:'saveAbsensi', tanggal:getTanggalHariIni(), absensi:absensiForSheet, usersMap });
-  if (!ok && SHEETS_URL) console.warn('saveAbsensi: gagal kirim ke server, data di cache lokal');
+  const usersMap = Object.fromEntries(
+    Object.entries(users).map(([k, v]) => [k, { name:v.name, inisial:v.inisial, role:v.role }])
+  );
+  const ok = await sheetsPost({ action:'saveAbsensi', tanggal:today, absensi:absensiForSheet, usersMap });
+  if (!ok && SHEETS_URL) console.warn('saveAbsensi: gagal kirim ke server, tersimpan lokal');
   return ok;
 }
 
 async function saveFeed() {
   lsSave('wt_cache_feed', feed);
-  const feedClean = feed.slice(0,200).map(f => ({
-    user:f.user, name:f.name, inisial:f.inisial, av:f.av, proyek:f.proyek, text:f.text, time:f.time,
-    imgUrl:f.imgUrl||null, imgEmbed:f.imgEmbed||f.imgUrl||null, imgView:f.imgView||null,
+  const feedClean = feed.slice(0, 200).map(f => ({
+    user:    f.user,
+    name:    f.name,
+    inisial: f.inisial,
+    av:      f.av,
+    proyek:  f.proyek,
+    text:    f.text,
+    time:    f.time,
+    imgUrl:   f.imgUrl   || null,
+    imgEmbed: f.imgEmbed || f.imgUrl || null,
+    imgView:  f.imgView  || null,
   }));
-  await sheetsPost({ action:'saveFeed', feed:feedClean });
+  return sheetsPost({ action:'saveFeed', feed:feedClean });
 }
 
 async function saveJadwal(data) {
   window._jadwalCache = data;
-  await sheetsPost({ action:'saveJadwal', jadwal:data });
+  return sheetsPost({ action:'saveJadwal', jadwal:data });
 }
 
 async function getJadwalBulan() {
@@ -909,7 +961,7 @@ async function getJadwalBulan() {
 }
 async function tambahJadwalMasuk() {
   const data = await getJadwalBulan();
-  data.count = (data.count||0) + 1;
+  data.count = (data.count || 0) + 1;
   await saveJadwal(data);
 }
 async function getJadwalBulanCount() {
@@ -917,25 +969,26 @@ async function getJadwalBulanCount() {
   return data.count || 0;
 }
 
-// ── Load semua data ──
+// ── Load semua data dari server ──
 async function loadAllData() {
   const savedUrl = localStorage.getItem('wt_sheets_url');
   SHEETS_URL = savedUrl || '';
   if (!SHEETS_URL) {
-    users = { ...DEFAULT_USERS }; feed = []; absensi = {};
+    users = JSON.parse(JSON.stringify(DEFAULT_USERS)); feed = []; absensi = {};
     return;
   }
   const data = await sheetsGet({ action:'getAll', date:getTanggalHariIni() });
-  users = data.users || { ...DEFAULT_USERS };
-  feed  = data.feed  || [];
+  if (data.users) users = data.users;
+  if (data.feed)  feed  = data.feed;
 
-  const serverAbsensi = data.absensi || {};
-  const serverHasData = Object.keys(serverAbsensi).some(k => serverAbsensi[k] && serverAbsensi[k].masuk);
-  const serverLastMod = data.lastModified || '0';
-  const cachedLastMod = lsLoad('wt_last_modified_server', '0');
+  const serverAbsensi  = data.absensi || {};
+  const serverHasData  = Object.keys(serverAbsensi).some(k => serverAbsensi[k] && serverAbsensi[k].masuk);
+  const serverLastMod  = data.lastModified || '0';
+  const cachedLastMod  = lsLoad('wt_last_modified_server', '0');
 
   if (serverHasData) {
-    absensi = Object.assign({}, absensi||{}, serverAbsensi);
+    // Merge: server sebagai base, data lokal yang baru disubmit menang
+    absensi = _mergeAbsensi(serverAbsensi, absensi);
   } else if (serverLastMod !== cachedLastMod) {
     absensi = {};
     lsClear('wt_cache_absensi');
@@ -946,12 +999,48 @@ async function loadAllData() {
   _lastSyncHash = makeDataHash(data);
 }
 
+// FIX #4: helper merge absensi — lokal hanya menang jika baru disubmit (< 90 detik)
+function _mergeAbsensi(serverAbs, localAbs) {
+  const merged = Object.assign({}, serverAbs);
+  if (!localAbs) return merged;
+  const now = Date.now();
+  Object.keys(localAbs).forEach(uname => {
+    const loc = localAbs[uname];
+    if (!loc) return;
+    const baruSajaSubmit = (now - (loc._lastSubmit || 0)) < 90000;
+    if (!merged[uname]) {
+      if (baruSajaSubmit) merged[uname] = loc;
+      return;
+    }
+    const svr = merged[uname];
+    // Foto lokal (base64) hanya disimpan di state lokal, tidak dikirim ke server
+    merged[uname] = {
+      ...svr,
+      masuk:  loc.masuk  || svr.masuk,
+      keluar: loc.keluar || svr.keluar,
+      fotoMasukUrl:    loc.fotoMasukUrl    || svr.fotoMasukUrl,
+      fotoMasukEmbed:  loc.fotoMasukEmbed  || svr.fotoMasukEmbed,
+      fotoMasukView:   loc.fotoMasukView   || svr.fotoMasukView,
+      fotoMasukFileId: loc.fotoMasukFileId || svr.fotoMasukFileId,
+      fotoKeluarUrl:    loc.fotoKeluarUrl    || svr.fotoKeluarUrl,
+      fotoKeluarEmbed:  loc.fotoKeluarEmbed  || svr.fotoKeluarEmbed,
+      fotoKeluarView:   loc.fotoKeluarView   || svr.fotoKeluarView,
+      fotoKeluarFileId: loc.fotoKeluarFileId || svr.fotoKeluarFileId,
+      namaUser:     loc.namaUser    || svr.namaUser,
+      _lastSubmit:  loc._lastSubmit || svr._lastSubmit,
+      _selfieMasukLocal:  loc._selfieMasukLocal,
+      _selfieKeluarLocal: loc._selfieKeluarLocal,
+    };
+  });
+  return merged;
+}
+
 // ── Smart Reload ──
 async function reloadSharedData() {
   if (!SHEETS_URL) return false;
   try {
     const data = await sheetsGet({ action:'getAll', date:getTanggalHariIni() });
-    const newHash = makeDataHash(data);
+    const newHash  = makeDataHash(data);
     const hasChange = (newHash !== _lastSyncHash);
 
     if (data.users) users = data.users;
@@ -964,32 +1053,9 @@ async function reloadSharedData() {
       const cachedMod  = lsLoad('wt_last_modified_server', '0');
 
       if (svrHasData) {
-        const merged = Object.assign({}, svrAbs);
-        const localAbs = absensi || {};
-        Object.keys(localAbs).forEach(function(uname) {
-          const loc = localAbs[uname];
-          if (!loc) return;
-          if (!merged[uname]) {
-            const lastSubmit = loc._lastSubmit || 0;
-            const baruSajaSubmit = (Date.now() - lastSubmit) < 90000;
-            if (!baruSajaSubmit) return;
-            merged[uname] = loc;
-            return;
-          }
-          const svr = merged[uname];
-          merged[uname] = Object.assign({}, svr, {
-            masuk:loc.masuk||svr.masuk, keluar:loc.keluar||svr.keluar,
-            fotoMasukUrl:loc.fotoMasukUrl||svr.fotoMasukUrl, fotoMasukEmbed:loc.fotoMasukEmbed||svr.fotoMasukEmbed,
-            fotoMasukView:loc.fotoMasukView||svr.fotoMasukView, fotoMasukFileId:loc.fotoMasukFileId||svr.fotoMasukFileId,
-            fotoKeluarUrl:loc.fotoKeluarUrl||svr.fotoKeluarUrl, fotoKeluarEmbed:loc.fotoKeluarEmbed||svr.fotoKeluarEmbed,
-            fotoKeluarView:loc.fotoKeluarView||svr.fotoKeluarView, fotoKeluarFileId:loc.fotoKeluarFileId||svr.fotoKeluarFileId,
-            namaUser:loc.namaUser||svr.namaUser, _lastSubmit:loc._lastSubmit||svr._lastSubmit,
-            _selfieMasukLocal:loc._selfieMasukLocal, _selfieKeluarLocal:loc._selfieKeluarLocal,
-          });
-        });
-        absensi = merged;
+        absensi = _mergeAbsensi(svrAbs, absensi);
       } else if (svrLastMod !== cachedMod) {
-        // ✅ FIX: Server reset absensi → hapus cache lokal juga
+        // Server reset → hapus lokal juga
         absensi = {};
         lsClear('wt_cache_absensi');
         lsSave('wt_cache_absensi', {});
@@ -1000,7 +1066,6 @@ async function reloadSharedData() {
     cacheStateToLocal();
     _lastSyncHash = newHash;
     updateSyncBadge();
-
     if (hasChange) _applyUIRefresh();
     return hasChange;
   } catch(e) {
@@ -1024,7 +1089,7 @@ function _applyUIRefresh() {
     const aActive = document.querySelector('#screen-admin .page.active');
     if (aActive) {
       const id = aActive.id;
-      if (id === 'a-dashboard') { renderFeed('a-feed-preview', true, 3); }
+      if (id === 'a-dashboard') renderFeed('a-feed-preview', true, 3);
       if (id === 'a-absensi')   renderAbsenTable();
       if (id === 'a-feed')      renderFeed('a-feed-full', true);
       if (id === 'a-karyawan')  renderEmpList();
@@ -1033,24 +1098,25 @@ function _applyUIRefresh() {
 }
 
 function updateSyncBadge(status) {
-  const now = new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
-  const txt = status === 'error' ? '⚠ Offline' : ('Sinkron ' + now);
+  const now = new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+  const txt  = status === 'error' ? '⚠ Offline' : ('Sinkron ' + now);
   const isErr = (status === 'error');
   ['k-sync-badge','k-sync-badge-desk','a-sync-badge','a-sync-badge-desk'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    el.style.display = 'inline-flex';
+    el.style.display    = 'inline-flex';
     el.style.background  = isErr ? 'rgba(239,68,68,.1)' : 'var(--green-dim)';
     el.style.borderColor = isErr ? 'rgba(239,68,68,.3)' : 'rgba(34,197,94,.2)';
     const dot = el.querySelector('.sync-dot');
     if (dot) dot.style.background = isErr ? 'var(--red)' : 'var(--green)';
   });
   ['k-sync-txt','k-sync-txt-desk','a-sync-txt','a-sync-txt-desk'].forEach(id => {
-    const e = document.getElementById(id); if(e) e.textContent = txt;
+    const e = document.getElementById(id);
+    if (e) e.textContent = txt;
   });
 }
 
-// ── Smart Polling: 30 detik normal, 5 detik setelah ada perubahan ──
+// ── Smart Polling ──
 function startSmartPolling() {
   if (_pollingActive) return;
   _pollingActive = true;
@@ -1063,7 +1129,7 @@ function startSmartPolling() {
       if (changed) fastCount = 3;
     } catch(e) { updateSyncBadge('error'); }
     if (!_pollingActive) return;
-    const delay = (fastCount > 0) ? (fastCount--, 5000) : 30000;
+    const delay = fastCount > 0 ? (fastCount--, 5000) : 30000;
     _pollingTimer = setTimeout(poll, delay);
   }
   _pollingTimer = setTimeout(poll, 5000);
@@ -1081,15 +1147,17 @@ async function doLogin() {
   const u = document.getElementById('l-user').value.trim().toLowerCase();
   const p = document.getElementById('l-pass').value;
   if (!users[u] || users[u].pass !== p) {
-    document.getElementById('l-err').style.display = 'block'; return;
+    document.getElementById('l-err').style.display = 'block';
+    return;
   }
   document.getElementById('l-err').style.display = 'none';
   currentUser = u;
-  if (users[u].role === 'admin') { showScreen('admin'); initAdmin(); }
-  else { showScreen('karyawan'); initKaryawan(); }
+  if (users[u].role === 'admin') { showScreen('admin');    initAdmin(); }
+  else                           { showScreen('karyawan'); initKaryawan(); }
 }
-document.getElementById('l-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
-document.getElementById('l-user').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+document.getElementById('l-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('l-user').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
 function doLogout() {
   currentUser = null;
@@ -1098,15 +1166,20 @@ function doLogout() {
   showScreen('login');
   document.getElementById('l-user').value = '';
   document.getElementById('l-pass').value = '';
+  // Reset guard flags
+  _absenSedangProses = false;
+  _kirimSedangProses = false;
+  _konfirmasiSedang  = false;
 }
 
 // ═══════════════
 //  SCREENS & NAV
 // ═══════════════
 function showScreen(s) {
-  document.querySelectorAll('.screen').forEach(x => { x.classList.remove('active'); x.style.display='none'; });
+  document.querySelectorAll('.screen').forEach(x => { x.classList.remove('active'); x.style.display = 'none'; });
   const el = document.getElementById('screen-' + s);
-  el.style.display = 'block'; el.classList.add('active');
+  el.style.display = 'block';
+  el.classList.add('active');
   const gnav = document.getElementById('global-mobile-nav');
   const gk   = document.getElementById('gnav-karyawan');
   const ga   = document.getElementById('gnav-admin');
@@ -1117,7 +1190,8 @@ function showScreen(s) {
 
 function kNav(page, el) {
   document.querySelectorAll('#screen-karyawan .page').forEach(p => p.classList.remove('active'));
-  document.getElementById('k-' + page).classList.add('active');
+  const pg = document.getElementById('k-' + page);
+  if (pg) pg.classList.add('active');
   document.querySelectorAll('#screen-karyawan .sidebar .nav-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
   if (page === 'feed')   renderFeed('feed-k', false);
@@ -1130,8 +1204,8 @@ function kNavGlobal(page, activeId) {
   const pg = document.getElementById('k-' + page);
   if (pg) pg.classList.add('active');
   ['gk-home','gk-update','gk-feed','gk-profil'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.classList.toggle('active', id === activeId);
+    const elNav = document.getElementById(id);
+    if (elNav) elNav.classList.toggle('active', id === activeId);
   });
   document.querySelectorAll('#screen-karyawan .sidebar .nav-item').forEach(n => n.classList.remove('active'));
   if (page === 'feed')   renderFeed('feed-k', false);
@@ -1143,7 +1217,8 @@ function kNavGlobal(page, activeId) {
 
 function aNav(page, el) {
   document.querySelectorAll('#screen-admin .page').forEach(p => p.classList.remove('active'));
-  document.getElementById('a-' + page).classList.add('active');
+  const pg = document.getElementById('a-' + page);
+  if (pg) pg.classList.add('active');
   document.querySelectorAll('#screen-admin .sidebar .nav-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
   if (page === 'dashboard') { refreshAdminStats(); renderStatusList(); renderFeed('a-feed-preview', true, 3); }
@@ -1151,9 +1226,11 @@ function aNav(page, el) {
   if (page === 'feed')      renderFeed('a-feed-full', true);
   if (page === 'karyawan')  renderEmpList();
   if (page === 'pengaturan') {
-    const eu = document.getElementById('sheets-url'); if (eu) eu.value = SHEETS_URL;
-    ['adm-pw-old','adm-pw-new','adm-pw-conf'].forEach(id => { const e = document.getElementById(id); if(e) e.value=''; });
-    const erre = document.getElementById('adm-pw-err'); if (erre) erre.style.display='none';
+    const eu = document.getElementById('sheets-url');
+    if (eu) eu.value = SHEETS_URL;
+    ['adm-pw-old','adm-pw-new','adm-pw-conf'].forEach(id => { const e = document.getElementById(id); if (e) e.value=''; });
+    const erre = document.getElementById('adm-pw-err');
+    if (erre) erre.style.display = 'none';
     renderResetAbsenList();
   }
 }
@@ -1163,8 +1240,8 @@ function aNavGlobal(page, activeId) {
   const pg = document.getElementById('a-' + page);
   if (pg) pg.classList.add('active');
   ['ga-dashboard','ga-absensi','ga-feed','ga-karyawan','ga-pengaturan'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.classList.toggle('active', id === activeId);
+    const elNav = document.getElementById(id);
+    if (elNav) elNav.classList.toggle('active', id === activeId);
   });
   document.querySelectorAll('#screen-admin .sidebar .nav-item').forEach(n => n.classList.remove('active'));
   if (page === 'dashboard') { refreshAdminStats(); renderStatusList(); renderFeed('a-feed-preview', true, 3); }
@@ -1182,176 +1259,271 @@ function aNavGlobal(page, activeId) {
 function initKaryawan() {
   const u = users[currentUser];
   const h = new Date().getHours();
-  document.getElementById('k-greeting').textContent = (h<12?'Selamat pagi, ':h<17?'Selamat siang, ':'Selamat sore, ') + u.name.split(' ')[0] + '!';
-  document.getElementById('k-date-sub').textContent = new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  document.getElementById('sb-name').textContent = u.name.split(' ')[0];
-  ['sb-avatar','mh-avatar'].forEach(id => { const el = document.getElementById(id); el.textContent = u.inisial; el.className = 'avatar ' + u.av; });
+  const greet = h < 12 ? 'Selamat pagi, ' : h < 17 ? 'Selamat siang, ' : 'Selamat sore, ';
+  const nameEl = document.getElementById('k-greeting');
+  if (nameEl) nameEl.textContent = greet + u.name.split(' ')[0] + '!';
+  const dateEl = document.getElementById('k-date-sub');
+  if (dateEl) dateEl.textContent = new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const sbName = document.getElementById('sb-name');
+  if (sbName) sbName.textContent = u.name.split(' ')[0];
+  ['sb-avatar','mh-avatar'].forEach(id => {
+    const avEl = document.getElementById(id);
+    if (avEl) { avEl.textContent = u.inisial; avEl.className = 'avatar ' + u.av; }
+  });
   updateAbsenUI();
   updateKStats();
-  setInterval(updateMetaBox, 10000);
+  if (!window._metaBoxInterval) {
+    window._metaBoxInterval = setInterval(updateMetaBox, 10000);
+  }
   updateMetaBox();
   stopPolling();
   startSmartPolling();
 }
 
 function updateAbsenUI() {
-  const a   = absensi[currentUser];
-  const icon = document.getElementById('absen-icon');
-  const st   = document.getElementById('absen-status-text');
-  const it   = document.getElementById('absen-time-text');
-  const ba   = document.getElementById('absen-btn-area');
+  const a   = absensi[currentUser] || null;
+  const icon       = document.getElementById('absen-icon');
+  const st         = document.getElementById('absen-status-text');
+  const it         = document.getElementById('absen-time-text');
+  const ba         = document.getElementById('absen-btn-area');
   const selfieHome = document.getElementById('absen-selfie-home');
-  if (!a) {
+  if (!icon || !st || !it || !ba || !selfieHome) return;
+
+  if (!a || !a.masuk) {
     icon.className = 'absen-icon idle';
     icon.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>';
-    st.textContent = 'Belum Absen'; it.textContent = 'Tekan tombol di bawah untuk absen masuk';
+    st.textContent = 'Belum Absen';
+    it.textContent = 'Tekan tombol di bawah untuk absen masuk';
     ba.innerHTML = '<button class="btn btn-primary" style="padding:12px 28px" onclick="bukaKameraAbsen(\'masuk\')">📸 Absen Masuk</button>';
     selfieHome.style.display = 'none';
   } else if (a.masuk && !a.keluar) {
     icon.className = 'absen-icon in';
     icon.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"/></svg>';
-    st.textContent = 'Sedang Bekerja'; it.textContent = 'Masuk pukul ' + a.masuk;
+    st.textContent = 'Sedang Bekerja';
+    it.textContent = 'Masuk pukul ' + a.masuk;
     ba.innerHTML = '<button class="btn btn-ghost" style="padding:12px 28px" onclick="bukaKameraAbsen(\'keluar\')">📸 Absen Pulang</button>';
-    if (a.fotoMasukUrl) { selfieHome.src = a.fotoMasukUrl; selfieHome.style.display = 'block'; }
-    else if (a._selfieMasukLocal) { selfieHome.src = a._selfieMasukLocal; selfieHome.style.display = 'block'; }
+    const fotoSrc = a._selfieMasukLocal || a.fotoMasukUrl || null;
+    if (fotoSrc) { selfieHome.src = fotoSrc; selfieHome.style.display = 'block'; }
     else { selfieHome.style.display = 'none'; }
   } else {
     icon.className = 'absen-icon done';
     icon.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>';
-    st.textContent = 'Selesai'; it.textContent = (a.masuk||'') + ' – ' + (a.keluar||'');
+    st.textContent = 'Selesai';
+    it.textContent = (a.masuk || '') + ' – ' + (a.keluar || '');
     ba.innerHTML = '<div style="font-size:13px;color:var(--text3)">Absensi hari ini sudah lengkap ✓</div>';
-    if (a.fotoMasukUrl) { selfieHome.src = a.fotoMasukUrl; selfieHome.style.display = 'block'; }
-    else if (a._selfieMasukLocal) { selfieHome.src = a._selfieMasukLocal; selfieHome.style.display = 'block'; }
+    const fotoSrc = a._selfieMasukLocal || a.fotoMasukUrl || null;
+    if (fotoSrc) { selfieHome.src = fotoSrc; selfieHome.style.display = 'block'; }
     else { selfieHome.style.display = 'none'; }
   }
 }
 
 async function updateKStats() {
-  document.getElementById('k-stat-hadir').textContent = await getJadwalBulanCount();
-  document.getElementById('k-stat-update').textContent = feed.filter(f => f.user === currentUser).length;
+  const hadirEl  = document.getElementById('k-stat-hadir');
+  const updateEl = document.getElementById('k-stat-update');
+  if (hadirEl)  hadirEl.textContent  = await getJadwalBulanCount();
+  if (updateEl) updateEl.textContent = feed.filter(f => f.user === currentUser).length;
 }
 
 // ═══════════════
 //  KAMERA
 // ═══════════════
+async function _initCamera(preferEnv) {
+  // FIX #3: stop dulu kalau masih ada stream
+  stopCamera();
+  const constraintsList = preferEnv
+    ? [{ video:{ facingMode:{ideal:'environment'}, width:{ideal:1280} } }, { video:{ facingMode:'user', width:{ideal:1280} } }, { video:true }]
+    : [{ video:{ facingMode:{ideal:'user'}, width:{ideal:640} } }, { video:{ facingMode:'user' } }, { video:true }];
+
+  for (const c of constraintsList) {
+    try { camStream = await navigator.mediaDevices.getUserMedia(c); return camStream; }
+    catch(e) { /* coba constraint berikutnya */ }
+  }
+  throw new Error('Tidak ada kamera yang bisa diakses');
+}
+
 async function bukaKameraAbsen(type) {
   if (_absenSedangProses) { toast('⏳ Sedang memproses absensi, harap tunggu…', 'amber'); return; }
   const _a = absensi[currentUser];
   if (type === 'masuk'  && _a && _a.masuk)  { toast('✅ Absen masuk sudah tercatat', 'green');  return; }
   if (type === 'keluar' && _a && _a.keluar) { toast('✅ Absen pulang sudah tercatat', 'green'); return; }
+
   absenPurpose = type;
   capturedPhoto = null;
-  document.getElementById('cam-modal-title').textContent = type === 'masuk' ? 'Foto Selfie Absen Masuk' : 'Foto Selfie Absen Pulang';
-  document.getElementById('cam-modal-sub').textContent = 'Posisikan wajah di dalam lingkaran';
-  const video = document.getElementById('cam-video');
-  const preview = document.getElementById('cam-preview');
-  video.style.display = 'block'; preview.style.display = 'none';
-  document.getElementById('cam-ring').style.display = 'block';
-  document.getElementById('cam-guide-label').style.display = 'block';
-  document.getElementById('cam-controls-live').style.display = 'flex';
-  document.getElementById('cam-controls-preview').style.display = 'none';
+  _konfirmasiSedang = false;
+
+  const camTitle = document.getElementById('cam-modal-title');
+  const camSub   = document.getElementById('cam-modal-sub');
+  if (camTitle) camTitle.textContent = type === 'masuk' ? 'Foto Selfie Absen Masuk' : 'Foto Selfie Absen Pulang';
+  if (camSub)   camSub.textContent = 'Posisikan wajah di dalam lingkaran';
+
+  _showCamLive();
   document.getElementById('cam-modal').classList.add('open');
+
   try {
-    const constraints = [{video:{facingMode:{ideal:'user'},width:{ideal:640}}},{video:{facingMode:'user'}},{video:true}];
-    for (const c of constraints) {
-      try { camStream = await navigator.mediaDevices.getUserMedia(c); break; } catch(e) {}
-    }
-    if (!camStream) throw new Error('no cam');
-    video.srcObject = camStream;
-  } catch(e) { tutupKamera(); toast('Kamera tidak bisa diakses', 'red'); }
-}
-
-function jepret() {
-  const video  = document.getElementById('cam-video');
-  const canvas = document.getElementById('cam-canvas');
-  canvas.width = video.videoWidth || 640;
-  canvas.height = video.videoHeight || 480;
-  const ctx = canvas.getContext('2d');
-  ctx.save(); ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
-  ctx.drawImage(video, 0, 0); ctx.restore();
-  capturedPhoto = canvas.toDataURL('image/jpeg', 0.75);
-  const preview = document.getElementById('cam-preview');
-  preview.src = capturedPhoto; preview.style.display = 'block';
-  document.getElementById('cam-video').style.display = 'none';
-  document.getElementById('cam-ring').style.display = 'none';
-  document.getElementById('cam-guide-label').style.display = 'none';
-  document.getElementById('cam-controls-live').style.display = 'none';
-  document.getElementById('cam-controls-preview').style.display = 'flex';
-  stopCamera();
-}
-
-function ulangiPhoto() {
-  capturedPhoto = null;
-  document.getElementById('cam-video').style.display = 'block';
-  document.getElementById('cam-preview').style.display = 'none';
-  document.getElementById('cam-ring').style.display = 'block';
-  document.getElementById('cam-guide-label').style.display = 'block';
-  document.getElementById('cam-controls-live').style.display = 'flex';
-  document.getElementById('cam-controls-preview').style.display = 'none';
-  bukaKameraAbsen(absenPurpose);
-}
-
-async function konfirmasiSelfie() {
-  tutupKamera();
-  if (!capturedPhoto) { toast('Foto tidak tersedia', 'red'); return; }
-  if (absenPurpose === 'update') {
-    fotoUpdateData = capturedPhoto;
-    fotoUpdateDriveUrl = null; fotoUpdateDriveView = null;
-    const prev = document.getElementById('foto-prev');
-    const wrap = document.getElementById('foto-prev-wrap');
-    if (prev) { prev.src = fotoUpdateData; wrap.style.display = 'block'; }
-    const driveInfo = document.getElementById('foto-drive-info');
-    if (driveInfo) driveInfo.style.display = 'none';
-    toast('Foto berhasil diambil!', 'green');
-  } else {
-    if (_absenSedangProses) { toast('⏳ Absensi sedang diproses, harap tunggu…', 'amber'); return; }
-    const _a = absensi[currentUser];
-    if (absenPurpose === 'keluar' && _a && _a.keluar) { toast('✅ Absen pulang sudah tercatat', 'green'); return; }
-    if (absenPurpose === 'masuk'  && _a && _a.masuk)  { toast('✅ Absen masuk sudah tercatat',  'green'); return; }
-    _absenSedangProses = true;
-    try { await simpanAbsen(absenPurpose, capturedPhoto); }
-    finally { _absenSedangProses = false; }
+    const stream = await _initCamera(false);
+    const video = document.getElementById('cam-video');
+    video.srcObject = stream;
+    await video.play().catch(() => {});
+  } catch(e) {
+    tutupKamera();
+    toast('Kamera tidak bisa diakses: ' + e.message, 'red');
   }
 }
 
 async function bukaKameraUpdate() {
   absenPurpose = 'update';
   capturedPhoto = null;
-  document.getElementById('cam-modal-title').textContent = 'Foto Dokumentasi Pekerjaan';
-  document.getElementById('cam-modal-sub').textContent = 'Ambil foto pekerjaan atau lokasi';
-  const video = document.getElementById('cam-video');
-  const preview = document.getElementById('cam-preview');
-  video.style.display = 'block'; preview.style.display = 'none';
-  document.getElementById('cam-ring').style.display = 'none';
-  document.getElementById('cam-guide-label').style.display = 'none';
-  document.getElementById('cam-controls-live').style.display = 'flex';
-  document.getElementById('cam-controls-preview').style.display = 'none';
+  _konfirmasiSedang = false;
+
+  const camTitle = document.getElementById('cam-modal-title');
+  const camSub   = document.getElementById('cam-modal-sub');
+  if (camTitle) camTitle.textContent = 'Foto Dokumentasi Pekerjaan';
+  if (camSub)   camSub.textContent  = 'Ambil foto pekerjaan atau lokasi';
+
+  document.getElementById('cam-ring').style.display         = 'none';
+  document.getElementById('cam-guide-label').style.display  = 'none';
+  _showCamLive();
   document.getElementById('cam-modal').classList.add('open');
+
   try {
-    const constraints = [{video:{facingMode:{ideal:'environment'},width:{ideal:1280}}},{video:{facingMode:'user',width:{ideal:1280}}},{video:true}];
-    for (const c of constraints) {
-      try { camStream = await navigator.mediaDevices.getUserMedia(c); break; } catch(e) {}
+    const stream = await _initCamera(true);
+    const video = document.getElementById('cam-video');
+    video.srcObject = stream;
+    await video.play().catch(() => {});
+  } catch(e) {
+    tutupKamera();
+    toast('Kamera tidak bisa diakses: ' + e.message, 'red');
+  }
+}
+
+function _showCamLive() {
+  const video   = document.getElementById('cam-video');
+  const preview = document.getElementById('cam-preview');
+  if (video)   video.style.display   = 'block';
+  if (preview) preview.style.display = 'none';
+  const ring   = document.getElementById('cam-ring');
+  const label  = document.getElementById('cam-guide-label');
+  const live   = document.getElementById('cam-controls-live');
+  const prev   = document.getElementById('cam-controls-preview');
+  if (absenPurpose !== 'update' && ring)  ring.style.display  = 'block';
+  if (absenPurpose !== 'update' && label) label.style.display = 'block';
+  if (live) live.style.display = 'flex';
+  if (prev) prev.style.display = 'none';
+}
+
+function jepret() {
+  const video  = document.getElementById('cam-video');
+  const canvas = document.getElementById('cam-canvas');
+  const w = video.videoWidth  || 640;
+  const h = video.videoHeight || 480;
+  canvas.width  = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.save();
+  ctx.translate(w, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(video, 0, 0);
+  ctx.restore();
+  capturedPhoto = canvas.toDataURL('image/jpeg', 0.75);
+
+  const preview = document.getElementById('cam-preview');
+  const videoEl = document.getElementById('cam-video');
+  if (preview) { preview.src = capturedPhoto; preview.style.display = 'block'; }
+  if (videoEl) videoEl.style.display = 'none';
+
+  const ring  = document.getElementById('cam-ring');
+  const label = document.getElementById('cam-guide-label');
+  const live  = document.getElementById('cam-controls-live');
+  const prev  = document.getElementById('cam-controls-preview');
+  if (ring)  ring.style.display  = 'none';
+  if (label) label.style.display = 'none';
+  if (live)  live.style.display  = 'none';
+  if (prev)  prev.style.display  = 'flex';
+
+  stopCamera(); // stop stream setelah jepret
+}
+
+function ulangiPhoto() {
+  capturedPhoto = null;
+  _konfirmasiSedang = false;
+  if (absenPurpose === 'update') bukaKameraUpdate();
+  else bukaKameraAbsen(absenPurpose);
+}
+
+// FIX #2: guard konfirmasi agar tidak dobel
+async function konfirmasiSelfie() {
+  if (_konfirmasiSedang) return;
+  _konfirmasiSedang = true;
+
+  tutupKamera();
+
+  if (!capturedPhoto) {
+    toast('Foto tidak tersedia', 'red');
+    _konfirmasiSedang = false;
+    return;
+  }
+
+  try {
+    if (absenPurpose === 'update') {
+      fotoUpdateData      = capturedPhoto;
+      fotoUpdateDriveUrl  = null;
+      fotoUpdateDriveView = null;
+      const prev = document.getElementById('foto-prev');
+      const wrap = document.getElementById('foto-prev-wrap');
+      if (prev) prev.src = fotoUpdateData;
+      if (wrap) wrap.style.display = 'block';
+      const driveInfo = document.getElementById('foto-drive-info');
+      if (driveInfo) driveInfo.style.display = 'none';
+      toast('Foto berhasil diambil!', 'green');
+    } else {
+      if (_absenSedangProses) { toast('⏳ Absensi sedang diproses…', 'amber'); return; }
+      const _a = absensi[currentUser];
+      if (absenPurpose === 'keluar' && _a && _a.keluar) { toast('✅ Absen pulang sudah tercatat', 'green'); return; }
+      if (absenPurpose === 'masuk'  && _a && _a.masuk)  { toast('✅ Absen masuk sudah tercatat',  'green'); return; }
+      _absenSedangProses = true;
+      try { await simpanAbsen(absenPurpose, capturedPhoto); }
+      finally { _absenSedangProses = false; }
     }
-    if (!camStream) throw new Error('no cam');
-    video.srcObject = camStream;
-  } catch(e) { tutupKamera(); toast('Kamera tidak bisa diakses', 'red'); }
+  } finally {
+    _konfirmasiSedang = false;
+    capturedPhoto = null;
+  }
 }
 
 function hapusFotoUpdate() {
-  fotoUpdateData = null; fotoUpdateDriveUrl = null; fotoUpdateDriveView = null;
+  fotoUpdateData      = null;
+  fotoUpdateDriveUrl  = null;
+  fotoUpdateDriveView = null;
   const prev = document.getElementById('foto-prev');
   const wrap = document.getElementById('foto-prev-wrap');
-  if (prev) { prev.src = ''; wrap.style.display = 'none'; }
-  document.getElementById('foto-input').value = '';
+  if (prev) prev.src = '';
+  if (wrap) wrap.style.display = 'none';
+  const fileInput = document.getElementById('foto-input');
+  if (fileInput) fileInput.value = '';
   toast('Foto dihapus', 'amber');
 }
 
-function stopCamera() { if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; } }
-function tutupKamera() { stopCamera(); document.getElementById('cam-modal').classList.remove('open'); }
+// FIX #3: stopCamera dengan null check
+function stopCamera() {
+  if (camStream) {
+    try { camStream.getTracks().forEach(t => t.stop()); } catch(e) {}
+    camStream = null;
+  }
+  const video = document.getElementById('cam-video');
+  if (video && video.srcObject) {
+    try { video.srcObject = null; } catch(e) {}
+  }
+}
+
+function tutupKamera() {
+  stopCamera();
+  document.getElementById('cam-modal').classList.remove('open');
+}
 
 // ═══════════════
 //  ABSENSI
 // ═══════════════
+// FIX #1: simpanAbsen — urutan yang benar: simpan lokal → upload foto → update dengan URL → kirim server
 async function simpanAbsen(type, selfieData) {
   const thisUser = currentUser;
   const tanggal  = getTanggalHariIni();
@@ -1364,22 +1536,29 @@ async function simpanAbsen(type, selfieData) {
   absensi[thisUser].tanggal     = new Date().toLocaleDateString('id-ID');
   absensi[thisUser].tanggalISO  = tanggal;
 
+  // Simpan foto lokal (base64) untuk preview offline
   if (type === 'masuk')  absensi[thisUser]._selfieMasukLocal  = selfieData;
   if (type === 'keluar') absensi[thisUser]._selfieKeluarLocal = selfieData;
 
+  // Simpan ke localStorage langsung
   lsSave('wt_cache_absensi', absensi);
   lsSave('wt_cache_tanggal', tanggal);
+  lsSave('wt_absensi_' + tanggal, absensi);
   updateAbsenUI();
   toast(type === 'masuk' ? '✓ Absen masuk tercatat, mengupload foto…' : '✓ Absen pulang tercatat, mengupload foto…', 'green');
 
+  // Upload foto ke Drive jika URL sudah ada
   if (SHEETS_URL) {
     try {
       const tipe     = type === 'masuk' ? 'masuk' : 'keluar';
       const filename = 'selfie_' + thisUser + '_' + tanggal + '_' + tipe + '_' + Date.now() + '.jpg';
       const driveResult = await uploadFotoDrive(selfieData, filename);
-      const fid      = driveResult.fileId || '';
-      const reliableThumb = fid ? ('https://lh3.googleusercontent.com/d/' + fid) : (driveResult.thumbUrl || driveResult.embedUrl);
+      const fid = driveResult.fileId || '';
+      const reliableThumb = fid
+        ? ('https://lh3.googleusercontent.com/d/' + fid)
+        : (driveResult.thumbUrl || driveResult.embedUrl);
 
+      // Pastikan object masih ada setelah async
       if (!absensi[thisUser]) absensi[thisUser] = {};
       if (type === 'masuk') {
         absensi[thisUser].fotoMasukUrl    = reliableThumb;
@@ -1393,17 +1572,20 @@ async function simpanAbsen(type, selfieData) {
         absensi[thisUser].fotoKeluarFileId = fid;
       }
       lsSave('wt_cache_absensi', absensi);
-      toast('☁️ Foto tersimpan, menyimpan absensi…', 'green');
+      lsSave('wt_absensi_' + tanggal, absensi);
+      toast('☁️ Foto tersimpan di Drive, menyimpan absensi…', 'green');
     } catch(e) {
       toast('⚠️ Upload foto gagal: ' + e.message + ' — absensi tetap tersimpan', 'amber');
     }
   }
 
+  // Tambah jadwal masuk
   if (type === 'masuk') await tambahJadwalMasuk();
+
+  // Kirim ke server
   const saved = await saveAbsensi();
   updateAbsenUI();
   updateKStats();
-  lsSave('wt_cache_absensi', absensi);
 
   if (saved) {
     toast('✅ Absensi berhasil tersimpan ke Spreadsheet!', 'green');
@@ -1413,26 +1595,33 @@ async function simpanAbsen(type, selfieData) {
     toast('✅ Absensi tersimpan (mode offline)', 'amber');
   }
 
+  // Reload dari server setelah beberapa saat untuk sinkronisasi
   if (SHEETS_URL) {
     const snapUser  = thisUser;
     const snapFotos = {
-      masuk:absensi[snapUser]&&absensi[snapUser].masuk,
-      keluar:absensi[snapUser]&&absensi[snapUser].keluar,
-      fotoMasukUrl:absensi[snapUser]&&absensi[snapUser].fotoMasukUrl,
-      fotoMasukEmbed:absensi[snapUser]&&absensi[snapUser].fotoMasukEmbed,
-      fotoMasukView:absensi[snapUser]&&absensi[snapUser].fotoMasukView,
-      fotoMasukFileId:absensi[snapUser]&&absensi[snapUser].fotoMasukFileId,
-      fotoKeluarUrl:absensi[snapUser]&&absensi[snapUser].fotoKeluarUrl,
-      fotoKeluarEmbed:absensi[snapUser]&&absensi[snapUser].fotoKeluarEmbed,
-      fotoKeluarView:absensi[snapUser]&&absensi[snapUser].fotoKeluarView,
-      fotoKeluarFileId:absensi[snapUser]&&absensi[snapUser].fotoKeluarFileId,
+      masuk:   absensi[snapUser] && absensi[snapUser].masuk,
+      keluar:  absensi[snapUser] && absensi[snapUser].keluar,
+      fotoMasukUrl:    absensi[snapUser] && absensi[snapUser].fotoMasukUrl,
+      fotoMasukEmbed:  absensi[snapUser] && absensi[snapUser].fotoMasukEmbed,
+      fotoMasukView:   absensi[snapUser] && absensi[snapUser].fotoMasukView,
+      fotoMasukFileId: absensi[snapUser] && absensi[snapUser].fotoMasukFileId,
+      fotoKeluarUrl:    absensi[snapUser] && absensi[snapUser].fotoKeluarUrl,
+      fotoKeluarEmbed:  absensi[snapUser] && absensi[snapUser].fotoKeluarEmbed,
+      fotoKeluarView:   absensi[snapUser] && absensi[snapUser].fotoKeluarView,
+      fotoKeluarFileId: absensi[snapUser] && absensi[snapUser].fotoKeluarFileId,
+      _selfieMasukLocal:  absensi[snapUser] && absensi[snapUser]._selfieMasukLocal,
+      _selfieKeluarLocal: absensi[snapUser] && absensi[snapUser]._selfieKeluarLocal,
     };
     setTimeout(async () => {
       await reloadSharedData();
+      // Pastikan data lokal tidak hilang setelah reload
       if (!absensi[snapUser]) absensi[snapUser] = {};
-      Object.keys(snapFotos).forEach(function(k) {
-        if (snapFotos[k]) absensi[snapUser][k] = snapFotos[k];
+      Object.keys(snapFotos).forEach(k => {
+        if (snapFotos[k] && !absensi[snapUser][k]) {
+          absensi[snapUser][k] = snapFotos[k];
+        }
       });
+      lsSave('wt_cache_absensi', absensi);
       updateAbsenUI();
       updateKStats();
     }, 8000);
@@ -1443,109 +1632,171 @@ async function simpanAbsen(type, selfieData) {
 //  UPDATE PEKERJAAN
 // ═══════════════
 function onFoto(e) {
-  const file = e.target.files[0]; if (!file) return;
+  const file = e.target.files[0];
+  if (!file) return;
+  // Validasi ukuran (max 10MB)
+  if (file.size > 10 * 1024 * 1024) {
+    toast('Ukuran foto terlalu besar (maks 10MB)', 'red');
+    e.target.value = '';
+    return;
+  }
   const reader = new FileReader();
   reader.onload = ev => {
-    fotoUpdateData = ev.target.result;
-    fotoUpdateDriveUrl = null; fotoUpdateDriveView = null;
+    fotoUpdateData      = ev.target.result;
+    fotoUpdateDriveUrl  = null;
+    fotoUpdateDriveView = null;
     const img  = document.getElementById('foto-prev');
     const wrap = document.getElementById('foto-prev-wrap');
-    if (img) { img.src = fotoUpdateData; wrap.style.display = 'block'; }
+    if (img)  img.src = fotoUpdateData;
+    if (wrap) wrap.style.display = 'block';
     const driveInfo = document.getElementById('foto-drive-info');
     if (driveInfo) driveInfo.style.display = 'none';
     toast('Foto dari galeri berhasil dipilih!', 'green');
   };
+  reader.onerror = () => toast('Gagal membaca file', 'red');
   reader.readAsDataURL(file);
 }
 
+// FIX #8: updateMetaBox tidak crash jika elemen tidak ada
 function updateMetaBox() {
-  if (!currentUser) return;
+  if (!currentUser || !users[currentUser]) return;
   const u = users[currentUser];
-  const now = new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const now = new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
   const mp = document.getElementById('m-pengirim');
   const mw = document.getElementById('m-waktu');
   if (mp) mp.textContent = u.name + ' (@' + currentUser + ')';
   if (mw) mw.textContent = now;
 }
 
+// FIX #9: kirimUpdate dengan guard agar tidak dobel
 async function kirimUpdate() {
-  const proyek = document.getElementById('u-proyek').value.trim();
-  const text   = document.getElementById('u-text').value.trim();
+  if (_kirimSedangProses) { toast('⏳ Sedang mengirim update, harap tunggu…', 'amber'); return; }
+  const proyekEl = document.getElementById('u-proyek');
+  const textEl   = document.getElementById('u-text');
+  if (!proyekEl || !textEl) return;
+
+  const proyek = proyekEl.value.trim();
+  const text   = textEl.value.trim();
   if (!text) { toast('Tulis keterangan progres dulu!', 'amber'); return; }
+
+  _kirimSedangProses = true;
   const u = users[currentUser];
   let imgUrl = null, imgEmbed = null, imgView = null, imgFileId = null;
 
-  if (fotoUpdateData && SHEETS_URL) {
-    try {
-      toast('Mengupload foto ke Drive…', 'purple');
-      const filename = 'feed_' + currentUser + '_' + Date.now() + '.jpg';
-      const driveResult = await uploadFotoDrive(fotoUpdateData, filename);
-      var feedFid = driveResult.fileId || '';
-      imgUrl   = feedFid ? ('https://lh3.googleusercontent.com/d/' + feedFid) : (driveResult.thumbUrl || driveResult.embedUrl);
-      imgEmbed = driveResult.embedUrl;
-      imgFileId = feedFid;
-      imgView  = driveResult.viewUrl;
-      fotoUpdateDriveUrl  = imgUrl;
-      fotoUpdateDriveView = imgView;
-      const driveInfo = document.getElementById('foto-drive-info');
-      if (driveInfo) driveInfo.style.display = 'inline-flex';
-      toast('☁️ Foto update tersimpan di Google Drive!', 'green');
-    } catch(e) {
-      toast('⚠️ Upload foto gagal, update tetap dikirim tanpa foto: ' + e.message, 'amber');
+  try {
+    if (fotoUpdateData && SHEETS_URL) {
+      try {
+        toast('Mengupload foto ke Drive…', 'purple');
+        const filename = 'feed_' + currentUser + '_' + Date.now() + '.jpg';
+        const driveResult = await uploadFotoDrive(fotoUpdateData, filename);
+        const feedFid = driveResult.fileId || '';
+        imgUrl   = feedFid ? ('https://lh3.googleusercontent.com/d/' + feedFid) : (driveResult.thumbUrl || driveResult.embedUrl);
+        imgEmbed = driveResult.embedUrl;
+        imgFileId = feedFid;
+        imgView   = driveResult.viewUrl;
+        fotoUpdateDriveUrl  = imgUrl;
+        fotoUpdateDriveView = imgView;
+        const driveInfo = document.getElementById('foto-drive-info');
+        if (driveInfo) driveInfo.style.display = 'inline-flex';
+        toast('☁️ Foto update tersimpan di Google Drive!', 'green');
+      } catch(e) {
+        toast('⚠️ Upload foto gagal, update tetap dikirim tanpa foto: ' + e.message, 'amber');
+      }
     }
+
+    const item = {
+      user:     currentUser,
+      name:     u.name,
+      inisial:  u.inisial,
+      av:       u.av,
+      proyek:   proyek || 'Umum',
+      text,
+      time:     nowStr(),
+      imgUrl,
+      imgEmbed,
+      imgFileId: imgFileId || null,
+      imgView,
+      _imgLocal: fotoUpdateData,
+    };
+    feed.unshift(item);
+    const saved = await saveFeed();
+
+    // Reset form
+    proyekEl.value = '';
+    textEl.value   = '';
+    const fileInput = document.getElementById('foto-input');
+    if (fileInput) fileInput.value = '';
+    const wrap = document.getElementById('foto-prev-wrap');
+    const prev = document.getElementById('foto-prev');
+    if (wrap) wrap.style.display = 'none';
+    if (prev) prev.src = '';
+    fotoUpdateData      = null;
+    fotoUpdateDriveUrl  = null;
+    fotoUpdateDriveView = null;
+
+    updateKStats();
+    if (saved) {
+      toast('✓ Update berhasil dikirim!', 'green');
+    } else if (SHEETS_URL) {
+      toast('✓ Update tersimpan lokal, gagal kirim ke server.', 'amber');
+    } else {
+      toast('✓ Update tersimpan (mode offline)', 'amber');
+    }
+
+    if (SHEETS_URL) {
+      setTimeout(async () => { await reloadSharedData(); }, 2000);
+    }
+  } finally {
+    _kirimSedangProses = false;
   }
-
-  const item = {
-    user:currentUser, name:u.name, inisial:u.inisial, av:u.av,
-    proyek:proyek||'Umum', text, time:nowStr(),
-    imgUrl, imgEmbed, imgFileId:imgFileId||null, imgView,
-    _imgLocal:fotoUpdateData,
-  };
-  feed.unshift(item);
-  await saveFeed();
-
-  document.getElementById('u-proyek').value = '';
-  document.getElementById('u-text').value = '';
-  document.getElementById('foto-input').value = '';
-  const wrap = document.getElementById('foto-prev-wrap');
-  if (wrap) wrap.style.display = 'none';
-  const prev = document.getElementById('foto-prev');
-  if (prev) prev.src = '';
-  fotoUpdateData = null; fotoUpdateDriveUrl = null; fotoUpdateDriveView = null;
-  updateKStats();
-  toast('✓ Update berhasil dikirim!', 'green');
-  if (SHEETS_URL) setTimeout(async () => { await reloadSharedData(); }, 2000);
 }
 
 // ═══════════════
 //  FEED RENDERER
 // ═══════════════
-function renderFeed(targetId, showMeta=false, limit=null) {
-  const container = document.getElementById(targetId); if (!container) return;
-  const items = limit ? feed.slice(0, limit) : feed;
+// FIX #6: escape HTML untuk mencegah XSS
+function renderFeed(targetId, showMeta, limit) {
+  const container = document.getElementById(targetId);
+  if (!container) return;
+  const items = (limit != null) ? feed.slice(0, limit) : feed;
   if (!items.length) {
     container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">Belum ada update.</div>';
     return;
   }
   container.innerHTML = items.map(f => {
+    const safeName   = escHtml(f.name   || '');
+    const safeInisial= escHtml(f.inisial|| '');
+    const safeProyek = escHtml(f.proyek || '');
+    const safeText   = escHtml(f.text   || '').replace(/\n/g, '<br>');
+    const safeTime   = escHtml(f.time   || '');
+    const safeAv     = escHtml(f.av     || '');
+
     let imgHtml = '';
     const displaySrc = f.imgUrl || f._imgLocal || null;
     if (displaySrc) {
-      const driveBtn = f.imgView ? `<a href="${f.imgView}" target="_blank" class="drive-badge" style="display:inline-flex;text-decoration:none;margin-top:4px" onclick="event.stopPropagation()">☁️ Buka di Drive</a>` : '';
-      imgHtml = `<img src="${displaySrc}" class="feed-img"
-        onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='inline-flex'"
-        onclick="showLightboxDrive('${displaySrc}','${f.imgView||''}')" style="cursor:zoom-in"/>
-        <a href="${f.imgView||'#'}" target="_blank" class="drive-badge"
+      const safeView = f.imgView ? escHtml(f.imgView) : '';
+      const safeSrc  = escHtml(displaySrc);
+      const driveBtn = safeView
+        ? `<a href="${safeView}" target="_blank" rel="noopener" class="drive-badge" style="display:inline-flex;text-decoration:none;margin-top:4px" onclick="event.stopPropagation()">☁️ Buka di Drive</a>`
+        : '';
+      imgHtml = `
+        <img src="${safeSrc}" class="feed-img"
+          onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='inline-flex'"
+          onclick="showLightboxDrive('${safeSrc}','${safeView}')" style="cursor:zoom-in" alt="Foto pekerjaan"/>
+        <a href="${safeView || '#'}" target="_blank" rel="noopener" class="drive-badge"
           style="display:none;text-decoration:none;margin-top:4px" onclick="event.stopPropagation()">📷 Foto tidak tampil — Klik buka di Drive</a>
         ${driveBtn}`;
     }
+
     return `<div class="feed-item">
-      <div class="avatar ${f.av}" style="flex-shrink:0">${f.inisial}</div>
+      <div class="avatar ${safeAv}" style="flex-shrink:0">${safeInisial}</div>
       <div class="feed-body">
-        <div><span class="feed-name">${f.name}</span><span class="feed-time">${f.time}</span>
-          ${f.proyek ? '<span class="badge badge-purple" style="margin-left:6px;font-size:10px">'+f.proyek+'</span>' : ''}
+        <div>
+          <span class="feed-name">${safeName}</span>
+          <span class="feed-time">${safeTime}</span>
+          ${safeProyek ? '<span class="badge badge-purple" style="margin-left:6px;font-size:10px">' + safeProyek + '</span>' : ''}
         </div>
-        <div class="feed-text">${f.text}</div>
+        <div class="feed-text">${safeText}</div>
         ${imgHtml}
       </div>
     </div>`;
@@ -1557,24 +1808,34 @@ function renderFeed(targetId, showMeta=false, limit=null) {
 // ═══════════════
 function initProfil() {
   const u = users[currentUser];
-  document.getElementById('profil-name').textContent = u.name;
+  const pn = document.getElementById('profil-name');
+  if (pn) pn.textContent = u.name;
   const pa = document.getElementById('profil-avatar');
-  pa.textContent = u.inisial; pa.className = 'avatar ' + u.av; pa.style.cssText = 'width:56px;height:56px;font-size:18px';
-  ['pw-old','pw-new','pw-conf'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('pw-err').style.display = 'none';
+  if (pa) { pa.textContent = u.inisial; pa.className = 'avatar ' + u.av; pa.style.cssText = 'width:56px;height:56px;font-size:18px'; }
+  ['pw-old','pw-new','pw-conf'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const errEl = document.getElementById('pw-err');
+  if (errEl) errEl.style.display = 'none';
 }
 
 async function gantiPassword() {
-  const old = document.getElementById('pw-old').value;
-  const nw  = document.getElementById('pw-new').value;
-  const cf  = document.getElementById('pw-conf').value;
-  const err = document.getElementById('pw-err'); err.style.display = 'none';
-  if (old !== users[currentUser].pass) { err.textContent='Password lama salah'; err.style.display='block'; return; }
-  if (nw.length < 4) { err.textContent='Password minimal 4 karakter'; err.style.display='block'; return; }
-  if (nw !== cf) { err.textContent='Konfirmasi tidak cocok'; err.style.display='block'; return; }
+  const oldEl = document.getElementById('pw-old');
+  const newEl = document.getElementById('pw-new');
+  const cfEl  = document.getElementById('pw-conf');
+  const errEl = document.getElementById('pw-err');
+  if (!oldEl || !newEl || !cfEl || !errEl) return;
+  const old = oldEl.value;
+  const nw  = newEl.value;
+  const cf  = cfEl.value;
+  errEl.style.display = 'none';
+  if (old !== users[currentUser].pass) { errEl.textContent='Password lama salah'; errEl.style.display='block'; return; }
+  if (nw.length < 4)   { errEl.textContent='Password minimal 4 karakter'; errEl.style.display='block'; return; }
+  if (nw !== cf)        { errEl.textContent='Konfirmasi tidak cocok'; errEl.style.display='block'; return; }
   users[currentUser].pass = nw;
   await saveUsers();
-  ['pw-old','pw-new','pw-conf'].forEach(id => document.getElementById(id).value = '');
+  ['pw-old','pw-new','pw-conf'].forEach(id => { const e = document.getElementById(id); if(e) e.value=''; });
   toast('Password berhasil diperbarui!', 'green');
 }
 
@@ -1582,7 +1843,8 @@ async function gantiPassword() {
 //  ADMIN
 // ═══════════════
 function initAdmin() {
-  document.getElementById('a-date').textContent = new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const dateEl = document.getElementById('a-date');
+  if (dateEl) dateEl.textContent = new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   refreshAdminStats();
   renderStatusList();
   renderFeed('a-feed-preview', true, 3);
@@ -1594,17 +1856,20 @@ async function refreshAdminStats() {
   const karys     = Object.entries(users).filter(([,v]) => v.role === 'karyawan');
   const hadir     = Object.keys(absensi).filter(u => absensi[u] && absensi[u].masuk).length;
   const fotoCount = Object.values(absensi).filter(a => a && (a.fotoMasukUrl || a._selfieMasukLocal)).length;
-  document.getElementById('a-s-hadir').textContent  = hadir;
-  document.getElementById('a-s-total').textContent  = karys.length;
-  document.getElementById('a-s-update').textContent = feed.length;
-  document.getElementById('a-s-foto').textContent   = fotoCount;
+  const setEl = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+  setEl('a-s-hadir',  hadir);
+  setEl('a-s-total',  karys.length);
+  setEl('a-s-update', feed.length);
+  setEl('a-s-foto',   fotoCount);
   const jadwalEl = document.getElementById('a-s-jadwal-bulan');
   if (jadwalEl) jadwalEl.textContent = await getJadwalBulanCount();
 }
 
 function renderStatusList() {
+  const el = document.getElementById('a-status-list');
+  if (!el) return;
   const karys = Object.entries(users).filter(([,v]) => v.role === 'karyawan');
-  document.getElementById('a-status-list').innerHTML = karys.map(([k, u]) => {
+  el.innerHTML = karys.map(([k, u]) => {
     const a = absensi[k];
     const badge = !a
       ? '<span class="badge badge-amber badge-dot">Belum absen</span>'
@@ -1612,58 +1877,65 @@ function renderStatusList() {
         ? '<span class="badge badge-green badge-dot">Selesai</span>'
         : '<span class="badge badge-purple badge-dot">Sedang bekerja</span>';
     const jam = a ? (a.masuk + (a.keluar ? ' – ' + a.keluar : '')) : '—';
-    const fotoLocal = a && a._selfieMasukLocal;
-    const fotoDrive = a && a.fotoMasukUrl;
-    const fotoSrc = fotoLocal || fotoDrive;
-    const fotoView = a && a.fotoMasukView;
+    const fotoSrc  = (a && (a._selfieMasukLocal || a.fotoMasukUrl)) || null;
+    const fotoView = (a && a.fotoMasukView) || null;
     const selfieThumb = fotoSrc
-      ? `<img src="${fotoSrc}"
-           onerror="if(this.dataset.tried){this.style.display='none'}else{this.dataset.tried=1;${fotoView?`this.src='${fotoView}'`:'this.style.display=\'none\''}}"
+      ? `<img src="${escHtml(fotoSrc)}"
+           onerror="if(this.dataset.tried){this.style.display='none'}else{this.dataset.tried=1;${fotoView ? `this.src='${escHtml(fotoView)}'` : `this.style.display='none'`}}"
            style="width:32px;height:40px;object-fit:cover;border-radius:4px;border:1px solid var(--border);cursor:pointer;margin-left:8px"
-           onclick="showLightboxDrive('${fotoSrc}','${fotoView||''}')" title="Foto selfie"/>`
+           onclick="showLightboxDrive('${escHtml(fotoSrc)}','${escHtml(fotoView||'')}')" title="Foto selfie" alt="selfie"/>`
       : '';
     return `<div class="emp-row">
       <div style="display:flex;align-items:center;gap:10px">
-        <div class="avatar ${u.av}">${u.inisial}</div>
+        <div class="avatar ${escHtml(u.av)}">${escHtml(u.inisial)}</div>
         ${selfieThumb}
-        <div><div style="font-size:14px;font-weight:500">${u.name}</div><div style="font-size:12px;color:var(--text3)">${jam}</div></div>
-      </div>${badge}</div>`;
+        <div>
+          <div style="font-size:14px;font-weight:500">${escHtml(u.name)}</div>
+          <div style="font-size:12px;color:var(--text3)">${escHtml(jam)}</div>
+        </div>
+      </div>
+      ${badge}
+    </div>`;
   }).join('');
 }
 
 function renderAbsenTable() {
+  const tbody = document.getElementById('a-absen-body');
+  if (!tbody) return;
   const karys = Object.entries(users).filter(([,v]) => v.role === 'karyawan');
   let cHadir = 0, cAktif = 0, cAbsen = 0;
-  document.getElementById('a-absen-body').innerHTML = karys.map(([k, u]) => {
+  tbody.innerHTML = karys.map(([k, u]) => {
     const a = absensi[k];
     let badge;
-    if (!a)        { cAbsen++; badge = '<span class="badge badge-amber">Belum Absen</span>'; }
-    else if(a.keluar) { cHadir++; badge = '<span class="badge badge-green">Hadir</span>'; }
-    else           { cAktif++; badge = '<span class="badge badge-purple">Sedang Bekerja</span>'; }
+    if (!a || !a.masuk) { cAbsen++; badge = '<span class="badge badge-amber">Belum Absen</span>'; }
+    else if (a.keluar)  { cHadir++; badge = '<span class="badge badge-green">Hadir</span>'; }
+    else                { cAktif++; badge = '<span class="badge badge-purple">Sedang Bekerja</span>'; }
 
     const makeFotoCell = (localSrc, driveUrl, viewUrl) => {
       const displaySrc = localSrc || driveUrl;
       if (!displaySrc && !viewUrl) return '<span style="color:var(--text3);font-size:12px">—</span>';
+      const safeSrc  = displaySrc ? escHtml(displaySrc) : '';
+      const safeView = viewUrl    ? escHtml(viewUrl)    : '';
       if (displaySrc) {
         return `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px">
-           <img src="${displaySrc}"
+           <img src="${safeSrc}"
              onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'"
              style="width:44px;height:56px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer"
-             onclick="showLightboxDrive('${displaySrc}','${viewUrl||''}')" title="Lihat foto"/>
-           <a href="${viewUrl||'#'}" target="_blank"
+             onclick="showLightboxDrive('${safeSrc}','${safeView}')" title="Lihat foto" alt="selfie"/>
+           <a href="${safeView || '#'}" target="_blank" rel="noopener"
              style="display:none;font-size:11px;color:#4285f4;text-decoration:none;align-items:center;gap:3px">📷 Lihat</a>
-           ${viewUrl ? `<a href="${viewUrl}" target="_blank" style="font-size:10px;color:#4285f4;text-decoration:none">☁️ Drive</a>` : ''}
+           ${safeView ? `<a href="${safeView}" target="_blank" rel="noopener" style="font-size:10px;color:#4285f4;text-decoration:none">☁️ Drive</a>` : ''}
          </div>`;
       }
-      return viewUrl ? `<a href="${viewUrl}" target="_blank" style="font-size:11px;color:#4285f4;text-decoration:none">📷 Lihat Foto</a>` : '—';
+      return safeView ? `<a href="${safeView}" target="_blank" rel="noopener" style="font-size:11px;color:#4285f4;text-decoration:none">📷 Lihat Foto</a>` : '—';
     };
 
     return `<tr>
-      <td><div style="display:flex;align-items:center;gap:8px"><div class="avatar ${u.av}" style="width:28px;height:28px;font-size:10px">${u.inisial}</div>${u.name}</div></td>
-      <td>${makeFotoCell(a&&a._selfieMasukLocal, a&&a.fotoMasukUrl, a&&a.fotoMasukView)}</td>
-      <td>${makeFotoCell(a&&a._selfieKeluarLocal, a&&a.fotoKeluarUrl, a&&a.fotoKeluarView)}</td>
-      <td>${a?.masuk  || '—'}</td>
-      <td>${a?.keluar || '—'}</td>
+      <td><div style="display:flex;align-items:center;gap:8px"><div class="avatar ${escHtml(u.av)}" style="width:28px;height:28px;font-size:10px">${escHtml(u.inisial)}</div>${escHtml(u.name)}</div></td>
+      <td>${makeFotoCell(a && a._selfieMasukLocal, a && a.fotoMasukUrl, a && a.fotoMasukView)}</td>
+      <td>${makeFotoCell(a && a._selfieKeluarLocal, a && a.fotoKeluarUrl, a && a.fotoKeluarView)}</td>
+      <td>${escHtml((a && a.masuk)  || '—')}</td>
+      <td>${escHtml((a && a.keluar) || '—')}</td>
       <td>${badge}</td>
     </tr>`;
   }).join('');
@@ -1672,69 +1944,85 @@ function renderAbsenTable() {
 
 function renderRekapHarian(hadir, aktif, absen, total) {
   const setEl = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
-  setEl('rek-hadir',hadir); setEl('rek-aktif',aktif); setEl('rek-absen',absen); setEl('rek-total',total);
+  setEl('rek-hadir', hadir); setEl('rek-aktif', aktif); setEl('rek-absen', absen); setEl('rek-total', total);
   const tglEl = document.getElementById('rekap-tanggal');
   if (tglEl) tglEl.textContent = new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   const masuk = hadir + aktif;
-  const pct   = total > 0 ? Math.round(masuk/total*100) : 0;
+  const pct   = total > 0 ? Math.round(masuk / total * 100) : 0;
   const persenEl = document.getElementById('rek-persen');
   const barEl    = document.getElementById('rek-bar');
-  if (persenEl) { persenEl.textContent = pct+'%'; persenEl.style.color = pct>=80?'var(--green)':pct>=50?'var(--amber)':'var(--red)'; }
-  if (barEl)    { barEl.style.width = pct+'%'; barEl.style.background = pct>=80?'linear-gradient(90deg,var(--green),#4ade80)':pct>=50?'linear-gradient(90deg,var(--amber),#fcd34d)':'linear-gradient(90deg,var(--red),#f87171)'; }
+  if (persenEl) { persenEl.textContent = pct + '%'; persenEl.style.color = pct >= 80 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)'; }
+  if (barEl)    { barEl.style.width = pct + '%'; barEl.style.background = pct >= 80 ? 'linear-gradient(90deg,var(--green),#4ade80)' : pct >= 50 ? 'linear-gradient(90deg,var(--amber),#fcd34d)' : 'linear-gradient(90deg,var(--red),#f87171)'; }
   const detEl = document.getElementById('rek-detail');
   if (detEl) {
     const lines = [];
-    if (hadir>0) lines.push(`<span style="color:var(--green)">✓ ${hadir} karyawan</span> hadir lengkap`);
-    if (aktif>0) lines.push(`<span style="color:var(--accent2)">● ${aktif} karyawan</span> sedang bekerja`);
-    if (absen>0) lines.push(`<span style="color:var(--amber)">⚠ ${absen} karyawan</span> belum absen`);
-    detEl.innerHTML = lines.join('<br/>') || '<span style="color:var(--text3)">Belum ada data absensi hari ini.</span>';
+    if (hadir > 0) lines.push(`<span style="color:var(--green)">✓ ${hadir} karyawan</span> hadir lengkap`);
+    if (aktif > 0) lines.push(`<span style="color:var(--accent2)">● ${aktif} karyawan</span> sedang bekerja`);
+    if (absen > 0) lines.push(`<span style="color:var(--amber)">⚠ ${absen} karyawan</span> belum absen`);
+    detEl.innerHTML = lines.join('<br>') || '<span style="color:var(--text3)">Belum ada data absensi hari ini.</span>';
   }
 }
 
 function renderEmpList() {
+  const el = document.getElementById('emp-list');
+  if (!el) return;
   const karys = Object.entries(users).filter(([,v]) => v.role === 'karyawan');
-  document.getElementById('emp-list').innerHTML = karys.map(([k, u]) => `
+  el.innerHTML = karys.map(([k, u]) => `
     <div class="emp-row">
       <div style="display:flex;align-items:center;gap:10px">
-        <div class="avatar ${u.av}">${u.inisial}</div>
-        <div><div style="font-size:14px;font-weight:500">${u.name}</div><div style="font-size:12px;color:var(--text3)">@${k}</div></div>
+        <div class="avatar ${escHtml(u.av)}">${escHtml(u.inisial)}</div>
+        <div>
+          <div style="font-size:14px;font-weight:500">${escHtml(u.name)}</div>
+          <div style="font-size:12px;color:var(--text3)">@${escHtml(k)}</div>
+        </div>
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost btn-xs" onclick="openResetModal('${k}')">Reset PW</button>
-        <button class="btn btn-danger btn-xs" onclick="hapusKaryawan('${k}')">Hapus</button>
+        <button class="btn btn-ghost btn-xs" onclick="openResetModal('${escHtml(k)}')">Reset PW</button>
+        <button class="btn btn-danger btn-xs" onclick="hapusKaryawan('${escHtml(k)}')">Hapus</button>
       </div>
     </div>`).join('');
 }
 
 async function tambahKaryawan() {
-  const u = document.getElementById('new-user').value.trim().toLowerCase();
-  const p = document.getElementById('new-pass').value;
-  const n = document.getElementById('new-name').value.trim();
-  const err = document.getElementById('new-err'); err.style.display = 'none';
-  if (!u||!p||!n) { err.textContent='Semua kolom wajib diisi'; err.style.display='block'; return; }
-  if (users[u])   { err.textContent='Username sudah digunakan'; err.style.display='block'; return; }
+  const uEl   = document.getElementById('new-user');
+  const pEl   = document.getElementById('new-pass');
+  const nEl   = document.getElementById('new-name');
+  const errEl = document.getElementById('new-err');
+  if (!uEl || !pEl || !nEl || !errEl) return;
+  const u = uEl.value.trim().toLowerCase();
+  const p = pEl.value;
+  const n = nEl.value.trim();
+  errEl.style.display = 'none';
+  if (!u || !p || !n) { errEl.textContent='Semua kolom wajib diisi'; errEl.style.display='block'; return; }
+  if (users[u])        { errEl.textContent='Username sudah digunakan'; errEl.style.display='block'; return; }
+  if (p.length < 4)    { errEl.textContent='Password minimal 4 karakter'; errEl.style.display='block'; return; }
   const avs = ['av-purple','av-teal','av-amber','av-coral','av-green'];
-  users[u] = { pass:p, name:n, inisial:n.split(' ').slice(0,2).map(w=>w[0].toUpperCase()).join(''), av:avs[Math.floor(Math.random()*avs.length)], role:'karyawan' };
+  const words = n.split(' ').filter(Boolean);
+  const inisial = words.slice(0,2).map(w => w[0].toUpperCase()).join('');
+  users[u] = { pass:p, name:n, inisial, av:avs[Math.floor(Math.random()*avs.length)], role:'karyawan' };
   await saveUsers();
-  ['new-user','new-pass','new-name'].forEach(id => document.getElementById(id).value = '');
-  renderEmpList(); refreshAdminStats();
+  uEl.value=''; pEl.value=''; nEl.value='';
+  renderEmpList();
+  refreshAdminStats();
   toast(n + ' berhasil ditambahkan!', 'green');
 }
 
 async function hapusKaryawan(u) {
   if (u === 'admin') return;
-  delete users[u]; delete absensi[u];
-  await saveUsers(); await saveAbsensi();
-  renderEmpList(); refreshAdminStats(); renderStatusList();
+  if (!confirm('Hapus karyawan ' + (users[u] ? users[u].name : u) + '?')) return;
+  delete users[u];
+  delete absensi[u];
+  await saveUsers();
+  await saveAbsensi();
+  renderEmpList();
+  refreshAdminStats();
+  renderStatusList();
   toast('Karyawan dihapus', 'amber');
 }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════
 //  RESET ABSENSI PER KARYAWAN
-//  FIX: setelah reset, kirim sinyal ke semua client via
-//  lastModified server, sehingga polling karyawan akan
-//  mendeteksi perubahan dan reset UI-nya
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════
 function renderResetAbsenList() {
   const el = document.getElementById('reset-absen-list');
   if (!el) return;
@@ -1747,83 +2035,84 @@ function renderResetAbsenList() {
   }
 
   el.innerHTML = sudahAbsen.map(([k, u]) => {
-    const a = absensi[k];
+    const a   = absensi[k];
     const jam = a.masuk + (a.keluar ? ' – ' + a.keluar : ' (belum pulang)');
     const badge = a.keluar
       ? '<span class="badge badge-green badge-dot" style="font-size:11px">Hadir Lengkap</span>'
       : '<span class="badge badge-purple badge-dot" style="font-size:11px">Masuk saja</span>';
     return `<div class="emp-row">
       <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
-        <div class="avatar ${u.av}" style="flex-shrink:0">${u.inisial}</div>
+        <div class="avatar ${escHtml(u.av)}" style="flex-shrink:0">${escHtml(u.inisial)}</div>
         <div style="min-width:0">
-          <div style="font-size:14px;font-weight:500">${u.name}</div>
-          <div style="font-size:11px;color:var(--text3)">${jam}</div>
+          <div style="font-size:14px;font-weight:500">${escHtml(u.name)}</div>
+          <div style="font-size:11px;color:var(--text3)">${escHtml(jam)}</div>
           <div style="margin-top:3px">${badge}</div>
         </div>
       </div>
       <button class="btn btn-danger btn-xs" style="flex-shrink:0;margin-left:8px"
-        onclick="resetAbsensiKaryawan('${k}','${u.name}')">Reset</button>
+        onclick="resetAbsensiKaryawan('${escHtml(k)}','${escHtml(u.name)}')">Reset</button>
     </div>`;
   }).join('');
 }
 
-// ✅ FIXED: resetAbsensiKaryawan — satu fungsi bersih, tidak ada kode duplikat
 async function resetAbsensiKaryawan(username, namaUser) {
-  if (!confirm(`Reset absensi ${namaUser} hari ini?\nData absensi hari sebelumnya tetap tersimpan.`)) return;
+  if (!confirm('Reset absensi ' + namaUser + ' hari ini?\nData absensi hari sebelumnya tetap tersimpan.')) return;
 
-  // 1. Hapus dari state lokal
   delete absensi[username];
   lsSave('wt_cache_absensi', absensi);
+  lsSave('wt_absensi_' + getTanggalHariIni(), absensi);
 
-  // ✅ 2. Update lastModified di server agar karyawan yang polling
-  //       bisa mendeteksi perubahan dan reset UI mereka
   if (SHEETS_URL) {
     try {
-      // Kirim full absensi state (tanpa user ini) → spreadsheet ter-update
       await saveAbsensi();
-
-      // Kirim explicit reset action agar GAS bisa hapus baris
       await sheetsPost({
         action: 'resetAbsensiUser',
         tanggal: getTanggalHariIni(),
-        username: username,
-        usersMap: Object.fromEntries(Object.entries(users).map(([k,v]) => [k, {name:v.name}]))
+        username,
+        usersMap: Object.fromEntries(Object.entries(users).map(([k,v]) => [k, { name:v.name }]))
       });
-
-      toast(`✓ Absensi ${namaUser} direset & sinkron ke server`, 'amber');
+      toast('✓ Absensi ' + namaUser + ' direset & sinkron ke server', 'amber');
     } catch(e) {
       console.warn('resetAbsensiUser gagal:', e.message);
-      toast(`⚠️ Reset lokal OK, server gagal: ` + e.message, 'amber');
+      toast('⚠️ Reset lokal OK, server gagal: ' + e.message, 'amber');
     }
   } else {
-    toast(`✓ Absensi ${namaUser} hari ini berhasil direset (offline)`, 'amber');
+    toast('✓ Absensi ' + namaUser + ' hari ini berhasil direset (offline)', 'amber');
   }
 
-  // 3. Refresh semua UI admin yang relevan
   renderResetAbsenList();
   renderStatusList();
   renderAbsenTable();
   refreshAdminStats();
-
-  // ✅ 4. Paksa polling lebih cepat agar karyawan segera dapat update
-  //       (turunkan _lastSyncHash agar reloadSharedData deteksi perubahan)
   _lastSyncHash = 'reset_' + Date.now();
 }
 
 function openResetModal(u) {
+  if (!users[u]) return;
   resetTargetUser = u;
-  document.getElementById('reset-target-name').textContent = users[u].name + ' (@' + u + ')';
-  document.getElementById('reset-new-pw').value = '';
-  document.getElementById('reset-err').style.display = 'none';
+  const tn = document.getElementById('reset-target-name');
+  if (tn) tn.textContent = users[u].name + ' (@' + u + ')';
+  const pwEl = document.getElementById('reset-new-pw');
+  if (pwEl) pwEl.value = '';
+  const errEl = document.getElementById('reset-err');
+  if (errEl) errEl.style.display = 'none';
   document.getElementById('modal-reset').classList.add('open');
 }
-function closeResetModal() { document.getElementById('modal-reset').classList.remove('open'); resetTargetUser = null; }
-document.getElementById('modal-reset').addEventListener('click', e => { if(e.target===document.getElementById('modal-reset')) closeResetModal(); });
+function closeResetModal() {
+  document.getElementById('modal-reset').classList.remove('open');
+  resetTargetUser = null;
+}
+document.getElementById('modal-reset').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-reset')) closeResetModal();
+});
 
 async function doResetPassword() {
-  const pw  = document.getElementById('reset-new-pw').value;
-  const err = document.getElementById('reset-err');
-  if (pw.length < 4) { err.textContent='Minimal 4 karakter'; err.style.display='block'; return; }
+  if (!resetTargetUser) return;
+  const pwEl  = document.getElementById('reset-new-pw');
+  const errEl = document.getElementById('reset-err');
+  if (!pwEl || !errEl) return;
+  const pw = pwEl.value;
+  if (pw.length < 4) { errEl.textContent='Minimal 4 karakter'; errEl.style.display='block'; return; }
   users[resetTargetUser].pass = pw;
   await saveUsers();
   closeResetModal();
@@ -1831,24 +2120,29 @@ async function doResetPassword() {
 }
 
 async function gantiPasswordAdmin() {
-  const old = document.getElementById('adm-pw-old').value;
-  const nw  = document.getElementById('adm-pw-new').value;
-  const cf  = document.getElementById('adm-pw-conf').value;
-  const err = document.getElementById('adm-pw-err'); err.style.display='none';
-  if (old !== users['admin'].pass) { err.textContent='Password lama salah'; err.style.display='block'; return; }
-  if (nw.length < 4) { err.textContent='Password minimal 4 karakter'; err.style.display='block'; return; }
-  if (nw !== cf) { err.textContent='Konfirmasi tidak cocok'; err.style.display='block'; return; }
+  const oldEl  = document.getElementById('adm-pw-old');
+  const newEl  = document.getElementById('adm-pw-new');
+  const cfEl   = document.getElementById('adm-pw-conf');
+  const errEl  = document.getElementById('adm-pw-err');
+  if (!oldEl || !newEl || !cfEl || !errEl) return;
+  const old = oldEl.value, nw = newEl.value, cf = cfEl.value;
+  errEl.style.display = 'none';
+  if (old !== users['admin'].pass) { errEl.textContent='Password lama salah'; errEl.style.display='block'; return; }
+  if (nw.length < 4)  { errEl.textContent='Password minimal 4 karakter'; errEl.style.display='block'; return; }
+  if (nw !== cf)       { errEl.textContent='Konfirmasi tidak cocok'; errEl.style.display='block'; return; }
   users['admin'].pass = nw;
   await saveUsers();
-  ['adm-pw-old','adm-pw-new','adm-pw-conf'].forEach(id => document.getElementById(id).value = '');
+  ['adm-pw-old','adm-pw-new','adm-pw-conf'].forEach(id => { const e = document.getElementById(id); if(e) e.value=''; });
   toast('Password admin berhasil diperbarui!', 'green');
 }
 
-// ══════════════════════════════════════
+// ═══════════════════════════════════════
 //  PENGATURAN SHEETS URL
-// ══════════════════════════════════════
+// ═══════════════════════════════════════
 async function simpanSheetsURL() {
-  const url = document.getElementById('sheets-url').value.trim();
+  const urlEl = document.getElementById('sheets-url');
+  if (!urlEl) return;
+  const url = urlEl.value.trim();
   if (url && !url.startsWith('https://script.google.com')) {
     toast('URL tidak valid. Harus dari script.google.com', 'red'); return;
   }
@@ -1865,17 +2159,20 @@ async function simpanSheetsURL() {
 }
 
 async function testSheetsURL() {
-  const url = document.getElementById('sheets-url').value.trim();
+  const urlEl = document.getElementById('sheets-url');
+  const st    = document.getElementById('sheets-status');
+  if (!urlEl || !st) return;
+  const url = urlEl.value.trim();
   if (!url) { toast('Isi URL dulu!', 'amber'); return; }
   if (!url.startsWith('https://script.google.com')) {
     toast('URL tidak valid. Harus dari script.google.com', 'red'); return;
   }
-  const st = document.getElementById('sheets-status');
   st.style.display='block'; st.style.color='var(--text2)'; st.textContent='⏳ Menguji koneksi ke Sheets…';
-  const prevUrl = SHEETS_URL; SHEETS_URL = url;
+  const prevUrl = SHEETS_URL;
+  SHEETS_URL = url;
   try {
     await sheetsGet({ action:'getAll', date:getTanggalHariIni() });
-    st.textContent='⏳ Sheets OK! Menguji Drive upload…';
+    st.textContent = '⏳ Sheets OK! Menguji Drive upload…';
     try {
       const r = await fetch(url, {
         method: 'POST', redirect: 'follow',
@@ -1884,10 +2181,11 @@ async function testSheetsURL() {
       });
       const rawText = await r.text();
       let data;
-      try { data = JSON.parse(rawText.replace(/^\uFEFF/, '').trim()); } catch(e) { throw new Error('Respons tidak valid'); }
+      try { data = JSON.parse(rawText.replace(/^\uFEFF/, '').trim()); }
+      catch(e) { throw new Error('Respons tidak valid'); }
       if (data.ok) {
-        st.style.color='var(--green)';
-        st.textContent='✓ Koneksi berhasil! Google Sheets & Drive siap digunakan.';
+        st.style.color = 'var(--green)';
+        st.textContent = '✓ Koneksi berhasil! Google Sheets & Drive siap digunakan.';
         SHEETS_URL = url;
         localStorage.setItem('wt_sheets_url', url);
         toast('✓ URL valid dan tersimpan!', 'green');
@@ -1895,14 +2193,14 @@ async function testSheetsURL() {
         throw new Error(data.error || 'Respons tidak valid');
       }
     } catch(e2) {
-      st.style.color='var(--amber)';
-      st.textContent='⚠ Sheets OK, tapi POST gagal: ' + e2.message;
+      st.style.color = 'var(--amber)';
+      st.textContent = '⚠ Sheets OK, tapi POST gagal: ' + e2.message;
       SHEETS_URL = prevUrl;
     }
   } catch(e) {
     SHEETS_URL = prevUrl;
-    st.style.color='var(--red)';
-    st.textContent='✗ Gagal: ' + e.message;
+    st.style.color = 'var(--red)';
+    st.textContent = '✗ Gagal: ' + e.message;
   }
 }
 
@@ -1918,34 +2216,33 @@ async function kirimUlangSemua() {
 // ═══════════════
 //  REKAP BULANAN
 // ═══════════════
+// FIX #10: initRekapBulanSelect baca key 'wt_absensi_YYYY-MM-DD' yang benar
 function initRekapBulanSelect() {
   const sel = document.getElementById('rekap-bulan-select');
   if (!sel) return;
   sel.innerHTML = '';
 
-  // Kumpulkan semua tanggal dari semua property absensi di localStorage
   const bulanSet = new Set();
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && key.startsWith('wt_absensi_')) {
-        const tgl = key.replace('wt_absensi_', ''); // yyyy-MM-dd
-        if (tgl.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          bulanSet.add(tgl.slice(0, 7)); // yyyy-MM
+        const tgl = key.replace('wt_absensi_', '');
+        if (/^\d{4}-\d{2}-\d{2}$/.test(tgl)) {
+          bulanSet.add(tgl.slice(0, 7));
         }
       }
     }
   } catch(e) {}
 
-  // Tambahkan bulan ini juga (meskipun belum ada data)
+  // Selalu sertakan bulan ini
   bulanSet.add(getTanggalHariIni().slice(0, 7));
 
-  // Urutkan descending
   const bulanList = Array.from(bulanSet).sort().reverse();
-
   bulanList.forEach(bln => {
     const [yr, mo] = bln.split('-');
-    const label = new Date(yr, mo - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+    const label = new Date(parseInt(yr), parseInt(mo) - 1, 1)
+      .toLocaleDateString('id-ID', { month:'long', year:'numeric' });
     const opt = document.createElement('option');
     opt.value = bln;
     opt.textContent = label;
@@ -1954,14 +2251,13 @@ function initRekapBulanSelect() {
 }
 
 function getAbsensiAllTanggal() {
-  // Ambil semua data absensi dari semua tanggal di localStorage
-  const allData = {}; // { 'yyyy-MM-dd': { username: {masuk, keluar, ...} } }
+  const allData = {};
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && key.startsWith('wt_absensi_')) {
         const tgl = key.replace('wt_absensi_', '');
-        if (tgl.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(tgl)) {
           try { allData[tgl] = JSON.parse(localStorage.getItem(key)) || {}; } catch(e) {}
         }
       }
@@ -1974,39 +2270,41 @@ function getAbsensiAllTanggal() {
 }
 
 function renderRekapBulanan() {
-  const sel = document.getElementById('rekap-bulan-select');
-  const tbody = document.getElementById('rekap-bulanan-body');
+  const sel     = document.getElementById('rekap-bulan-select');
+  const tbody   = document.getElementById('rekap-bulanan-body');
   const emptyEl = document.getElementById('rekap-bulanan-empty');
   if (!sel || !tbody) return;
 
-  const bulanDipilih = sel.value; // yyyy-MM
-  const allData = getAbsensiAllTanggal();
-
-  // Filter tanggal sesuai bulan dipilih
+  const bulanDipilih = sel.value;
+  const allData      = getAbsensiAllTanggal();
   const tanggalBulan = Object.keys(allData)
     .filter(tgl => tgl.startsWith(bulanDipilih))
     .sort();
-
   const karys = Object.entries(users).filter(([, v]) => v.role === 'karyawan');
 
   if (tanggalBulan.length === 0) {
     tbody.innerHTML = '';
-    emptyEl.style.display = 'block';
+    if (emptyEl) emptyEl.style.display = 'block';
     return;
   }
-  emptyEl.style.display = 'none';
+  if (emptyEl) emptyEl.style.display = 'none';
 
   tbody.innerHTML = karys.map(([uname, u]) => {
     let totalMasuk = 0, totalLengkap = 0, totalMasukSaja = 0;
-    const tanggalMasuk = [];
+    const tanggalMasukHtml = [];
 
     tanggalBulan.forEach(tgl => {
       const a = allData[tgl] && allData[tgl][uname];
       if (a && a.masuk) {
         totalMasuk++;
-        if (a.keluar) { totalLengkap++; } else { totalMasukSaja++; }
         const tglFmt = new Date(tgl).toLocaleDateString('id-ID', { day:'numeric', month:'short' });
-        tanggalMasuk.push(`<span style="display:inline-block;padding:2px 6px;background:${a.keluar?'var(--green-dim)':'var(--amber-dim)'};border-radius:4px;font-size:10px;color:${a.keluar?'var(--green)':'var(--amber)'};margin:2px">${tglFmt}</span>`);
+        if (a.keluar) {
+          totalLengkap++;
+          tanggalMasukHtml.push(`<span style="display:inline-block;padding:2px 6px;background:var(--green-dim);border-radius:4px;font-size:10px;color:var(--green);margin:2px">${tglFmt}</span>`);
+        } else {
+          totalMasukSaja++;
+          tanggalMasukHtml.push(`<span style="display:inline-block;padding:2px 6px;background:var(--amber-dim);border-radius:4px;font-size:10px;color:var(--amber);margin:2px">${tglFmt}</span>`);
+        }
       }
     });
 
@@ -2016,9 +2314,9 @@ function renderRekapBulanan() {
     return `<tr>
       <td>
         <div style="display:flex;align-items:center;gap:8px">
-          <div class="avatar ${u.av}" style="width:28px;height:28px;font-size:10px">${u.inisial}</div>
+          <div class="avatar ${escHtml(u.av)}" style="width:28px;height:28px;font-size:10px">${escHtml(u.inisial)}</div>
           <div>
-            <div style="font-weight:500;color:var(--text);font-size:13px">${u.name}</div>
+            <div style="font-weight:500;color:var(--text);font-size:13px">${escHtml(u.name)}</div>
             <div style="font-size:10px;color:var(--text3)">${tanggalBulan.length} hari kerja</div>
           </div>
         </div>
@@ -2033,7 +2331,7 @@ function renderRekapBulanan() {
       <td style="text-align:center"><span class="badge badge-green">${totalLengkap}</span></td>
       <td style="text-align:center"><span class="badge badge-amber">${totalMasukSaja}</span></td>
       <td style="max-width:200px">
-        ${tanggalMasuk.length > 0 ? tanggalMasuk.join('') : '<span style="color:var(--text3);font-size:12px">—</span>'}
+        ${tanggalMasukHtml.length > 0 ? tanggalMasukHtml.join('') : '<span style="color:var(--text3);font-size:12px">—</span>'}
       </td>
     </tr>`;
   }).join('');
@@ -2047,7 +2345,7 @@ function exportCsvBulanan() {
   const tanggalBulan = Object.keys(allData).filter(t => t.startsWith(bulanDipilih)).sort();
   const karys = Object.entries(users).filter(([,v]) => v.role === 'karyawan');
 
-  const rows = [['Nama', 'Username', 'Total Masuk', 'Hadir Lengkap', 'Masuk Saja', 'Kehadiran %', ...tanggalBulan]];
+  const rows = [['Nama','Username','Total Masuk','Hadir Lengkap','Masuk Saja','Kehadiran %', ...tanggalBulan]];
   karys.forEach(([uname, u]) => {
     let totalMasuk = 0, totalLengkap = 0, totalMasukSaja = 0;
     const cols = tanggalBulan.map(tgl => {
@@ -2064,12 +2362,13 @@ function exportCsvBulanan() {
   });
 
   const [yr, mo] = bulanDipilih.split('-');
-  const bulanLabel = new Date(yr, mo-1, 1).toLocaleDateString('id-ID', {month:'long', year:'numeric'});
   const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g,'""') + '"').join(',')).join('\n');
   const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent('﻿' + csv);
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent('\uFEFF' + csv);
   a.download = 'rekap_bulanan_' + bulanDipilih + '.csv';
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   toast('CSV rekap bulanan berhasil diunduh!', 'green');
 }
 
@@ -2083,17 +2382,21 @@ function exportCsv() {
     const a = absensi[k];
     rows.push([
       u.name, k,
-      a?.tanggal||'—', a?.masuk||'—', a?.keluar||'—',
-      !a?'Belum':a.keluar?'Hadir':'Aktif',
-      a?.fotoMasukView  || '—',
-      a?.fotoKeluarView || '—',
+      (a && a.tanggal)  || '—',
+      (a && a.masuk)    || '—',
+      (a && a.keluar)   || '—',
+      !a ? 'Belum' : a.keluar ? 'Hadir' : 'Aktif',
+      (a && a.fotoMasukView)  || '—',
+      (a && a.fotoKeluarView) || '—',
     ]);
   });
   const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g,'""') + '"').join(',')).join('\n');
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent('\uFEFF' + csv);
   a.download = 'absensi_gnsjaya_' + getTanggalHariIni() + '.csv';
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   toast('CSV berhasil diunduh!', 'green');
 }
 
@@ -2104,10 +2407,13 @@ function showLightbox(src) { showLightboxDrive(src, ''); }
 function showLightboxDrive(src, viewUrl) {
   const img  = document.getElementById('lightbox-img');
   const link = document.getElementById('lightbox-drive-link');
+  if (!img) return;
   img.src = src;
   currentLightboxDriveUrl = viewUrl;
-  if (viewUrl) { link.href = viewUrl; link.style.display = 'inline-flex'; }
-  else { link.style.display = 'none'; }
+  if (link) {
+    if (viewUrl) { link.href = viewUrl; link.style.display = 'inline-flex'; }
+    else { link.style.display = 'none'; }
+  }
   document.getElementById('lightbox').classList.add('open');
 }
 function closeLightboxClick(e) {
@@ -2120,11 +2426,12 @@ function closeLightboxClick(e) {
 //  TOAST
 // ═══════════════
 let toastTimer = null;
-function toast(msg, type='green') {
+function toast(msg, type) {
   const t   = document.getElementById('toast');
   const dot = document.getElementById('toast-dot');
   const m   = document.getElementById('toast-msg');
-  const c   = {green:'var(--green)',amber:'var(--amber)',red:'var(--red)',purple:'var(--accent2)'};
+  if (!t || !dot || !m) return;
+  const c = { green:'var(--green)', amber:'var(--amber)', red:'var(--red)', purple:'var(--accent2)' };
   dot.style.background = c[type] || c.green;
   m.textContent = msg;
   t.classList.add('show');
@@ -2132,13 +2439,12 @@ function toast(msg, type='green') {
   toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
 }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 //  INIT APP
-//  FIX PERFORMA: tampil instan dari cache, load server di
-//  background tanpa blocking UI
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 async function initApp() {
-  document.getElementById('loading-overlay').style.display = 'flex';
+  const loadingEl = document.getElementById('loading-overlay');
+  if (loadingEl) loadingEl.style.display = 'flex';
   document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
 
   const _defaultUrl = 'https://script.google.com/macros/s/AKfycbwN6HQezGg7vnHvzjx0D_-EPeZKyxib7jw4z-3Yy_TU52cCXZi2Vo_T4qL3yxSB7cBW0A/exec';
@@ -2148,26 +2454,25 @@ async function initApp() {
 
   const savedUrl = localStorage.getItem('wt_sheets_url');
 
-  // ✅ FIX PERFORMA: Muat cache lokal DULU → tampil login instan
+  // Muat cache lokal DULU → tampil login instan
   loadCacheFromLocal();
   SHEETS_URL = savedUrl || '';
 
-  // Sembunyikan loading dan tampilkan login SEGERA dari cache
-  document.getElementById('loading-overlay').style.display = 'none';
+  // Sembunyikan loading dan tampilkan login segera
+  if (loadingEl) loadingEl.style.display = 'none';
   showScreen('login');
+
   const urlEl = document.getElementById('sheets-url');
   if (urlEl && savedUrl) urlEl.value = savedUrl;
 
-  // ✅ Load dari server di BACKGROUND (tidak blocking)
+  // Load dari server di background (tidak blocking)
   if (savedUrl) {
     SHEETS_URL = savedUrl;
     loadAllData().then(() => {
-      // Data server berhasil dimuat, update URL field jika di halaman pengaturan
       const urlElBg = document.getElementById('sheets-url');
       if (urlElBg) urlElBg.value = savedUrl;
     }).catch(e => {
       console.warn('Background load gagal, pakai cache lokal:', e.message);
-      // Tidak perlu toast karena user belum login, tidak mengganggu
     });
   }
 }
