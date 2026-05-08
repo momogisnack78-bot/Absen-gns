@@ -529,6 +529,25 @@ textarea.inp{resize:none;min-height:90px;line-height:1.6}
           <div style="background:var(--surface3);border-radius:999px;height:8px;overflow:hidden"><div id="rek-bar" style="height:100%;border-radius:999px;background:linear-gradient(90deg,var(--green),#4ade80);transition:width .5s ease;width:0%"></div></div>
           <div id="rek-detail" style="margin-top:14px;font-size:12px;color:var(--text3);line-height:1.8"></div>
         </div>
+
+        <!-- ✅ REKAP BULANAN PER KARYAWAN -->
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+            <div class="card-title" style="margin:0">📅 Rekap Bulanan Per Karyawan</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <select id="rekap-bulan-select" class="inp" style="width:auto;padding:6px 10px;font-size:12px" onchange="renderRekapBulanan()">
+              </select>
+              <button class="btn btn-ghost btn-sm" onclick="exportCsvBulanan()">Export CSV ↗</button>
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="tbl">
+              <thead><tr><th>Karyawan</th><th style="text-align:center">Total Masuk</th><th style="text-align:center">Hadir Lengkap</th><th style="text-align:center">Masuk Saja</th><th>Detail Tanggal</th></tr></thead>
+              <tbody id="rekap-bulanan-body"></tbody>
+            </table>
+          </div>
+          <div id="rekap-bulanan-empty" style="text-align:center;padding:24px;color:var(--text3);font-size:13px;display:none">Belum ada data absensi bulan ini.</div>
+        </div>
       </div>
 
       <div id="a-feed" class="page">
@@ -1128,7 +1147,7 @@ function aNav(page, el) {
   document.querySelectorAll('#screen-admin .sidebar .nav-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
   if (page === 'dashboard') { refreshAdminStats(); renderStatusList(); renderFeed('a-feed-preview', true, 3); }
-  if (page === 'absensi')   renderAbsenTable();
+  if (page === 'absensi')   { renderAbsenTable(); initRekapBulanSelect(); renderRekapBulanan(); }
   if (page === 'feed')      renderFeed('a-feed-full', true);
   if (page === 'karyawan')  renderEmpList();
   if (page === 'pengaturan') {
@@ -1149,7 +1168,7 @@ function aNavGlobal(page, activeId) {
   });
   document.querySelectorAll('#screen-admin .sidebar .nav-item').forEach(n => n.classList.remove('active'));
   if (page === 'dashboard') { refreshAdminStats(); renderStatusList(); renderFeed('a-feed-preview', true, 3); }
-  if (page === 'absensi')   renderAbsenTable();
+  if (page === 'absensi')   { renderAbsenTable(); initRekapBulanSelect(); renderRekapBulanan(); }
   if (page === 'feed')      renderFeed('a-feed-full', true);
   if (page === 'karyawan')  renderEmpList();
   if (page === 'pengaturan') renderResetAbsenList();
@@ -1894,6 +1913,164 @@ async function kirimUlangSemua() {
   await saveAbsensi();
   await saveFeed();
   toast('✓ Semua data berhasil dikirim ulang!', 'green');
+}
+
+// ═══════════════
+//  REKAP BULANAN
+// ═══════════════
+function initRekapBulanSelect() {
+  const sel = document.getElementById('rekap-bulan-select');
+  if (!sel) return;
+  sel.innerHTML = '';
+
+  // Kumpulkan semua tanggal dari semua property absensi di localStorage
+  const bulanSet = new Set();
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('wt_absensi_')) {
+        const tgl = key.replace('wt_absensi_', ''); // yyyy-MM-dd
+        if (tgl.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          bulanSet.add(tgl.slice(0, 7)); // yyyy-MM
+        }
+      }
+    }
+  } catch(e) {}
+
+  // Tambahkan bulan ini juga (meskipun belum ada data)
+  bulanSet.add(getTanggalHariIni().slice(0, 7));
+
+  // Urutkan descending
+  const bulanList = Array.from(bulanSet).sort().reverse();
+
+  bulanList.forEach(bln => {
+    const [yr, mo] = bln.split('-');
+    const label = new Date(yr, mo - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+    const opt = document.createElement('option');
+    opt.value = bln;
+    opt.textContent = label;
+    sel.appendChild(opt);
+  });
+}
+
+function getAbsensiAllTanggal() {
+  // Ambil semua data absensi dari semua tanggal di localStorage
+  const allData = {}; // { 'yyyy-MM-dd': { username: {masuk, keluar, ...} } }
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('wt_absensi_')) {
+        const tgl = key.replace('wt_absensi_', '');
+        if (tgl.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          try { allData[tgl] = JSON.parse(localStorage.getItem(key)) || {}; } catch(e) {}
+        }
+      }
+    }
+  } catch(e) {}
+  // Selalu sertakan data hari ini dari state aktif
+  const today = getTanggalHariIni();
+  if (Object.keys(absensi).length > 0) allData[today] = absensi;
+  return allData;
+}
+
+function renderRekapBulanan() {
+  const sel = document.getElementById('rekap-bulan-select');
+  const tbody = document.getElementById('rekap-bulanan-body');
+  const emptyEl = document.getElementById('rekap-bulanan-empty');
+  if (!sel || !tbody) return;
+
+  const bulanDipilih = sel.value; // yyyy-MM
+  const allData = getAbsensiAllTanggal();
+
+  // Filter tanggal sesuai bulan dipilih
+  const tanggalBulan = Object.keys(allData)
+    .filter(tgl => tgl.startsWith(bulanDipilih))
+    .sort();
+
+  const karys = Object.entries(users).filter(([, v]) => v.role === 'karyawan');
+
+  if (tanggalBulan.length === 0) {
+    tbody.innerHTML = '';
+    emptyEl.style.display = 'block';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  tbody.innerHTML = karys.map(([uname, u]) => {
+    let totalMasuk = 0, totalLengkap = 0, totalMasukSaja = 0;
+    const tanggalMasuk = [];
+
+    tanggalBulan.forEach(tgl => {
+      const a = allData[tgl] && allData[tgl][uname];
+      if (a && a.masuk) {
+        totalMasuk++;
+        if (a.keluar) { totalLengkap++; } else { totalMasukSaja++; }
+        const tglFmt = new Date(tgl).toLocaleDateString('id-ID', { day:'numeric', month:'short' });
+        tanggalMasuk.push(`<span style="display:inline-block;padding:2px 6px;background:${a.keluar?'var(--green-dim)':'var(--amber-dim)'};border-radius:4px;font-size:10px;color:${a.keluar?'var(--green)':'var(--amber)'};margin:2px">${tglFmt}</span>`);
+      }
+    });
+
+    const pct = tanggalBulan.length > 0 ? Math.round(totalMasuk / tanggalBulan.length * 100) : 0;
+    const barColor = pct >= 80 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
+
+    return `<tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="avatar ${u.av}" style="width:28px;height:28px;font-size:10px">${u.inisial}</div>
+          <div>
+            <div style="font-weight:500;color:var(--text);font-size:13px">${u.name}</div>
+            <div style="font-size:10px;color:var(--text3)">${tanggalBulan.length} hari kerja</div>
+          </div>
+        </div>
+      </td>
+      <td style="text-align:center">
+        <div style="font-family:var(--font-head);font-size:22px;font-weight:600;color:var(--text)">${totalMasuk}</div>
+        <div style="margin-top:4px;background:var(--surface3);border-radius:999px;height:4px;width:60px;margin-left:auto;margin-right:auto;overflow:hidden">
+          <div style="height:100%;border-radius:999px;background:${barColor};width:${pct}%;transition:width .4s"></div>
+        </div>
+        <div style="font-size:10px;color:var(--text3);margin-top:3px">${pct}%</div>
+      </td>
+      <td style="text-align:center"><span class="badge badge-green">${totalLengkap}</span></td>
+      <td style="text-align:center"><span class="badge badge-amber">${totalMasukSaja}</span></td>
+      <td style="max-width:200px">
+        ${tanggalMasuk.length > 0 ? tanggalMasuk.join('') : '<span style="color:var(--text3);font-size:12px">—</span>'}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function exportCsvBulanan() {
+  const sel = document.getElementById('rekap-bulan-select');
+  if (!sel) return;
+  const bulanDipilih = sel.value;
+  const allData = getAbsensiAllTanggal();
+  const tanggalBulan = Object.keys(allData).filter(t => t.startsWith(bulanDipilih)).sort();
+  const karys = Object.entries(users).filter(([,v]) => v.role === 'karyawan');
+
+  const rows = [['Nama', 'Username', 'Total Masuk', 'Hadir Lengkap', 'Masuk Saja', 'Kehadiran %', ...tanggalBulan]];
+  karys.forEach(([uname, u]) => {
+    let totalMasuk = 0, totalLengkap = 0, totalMasukSaja = 0;
+    const cols = tanggalBulan.map(tgl => {
+      const a = allData[tgl] && allData[tgl][uname];
+      if (a && a.masuk) {
+        totalMasuk++;
+        if (a.keluar) { totalLengkap++; return 'Hadir'; }
+        else { totalMasukSaja++; return 'Masuk'; }
+      }
+      return '—';
+    });
+    const pct = tanggalBulan.length > 0 ? Math.round(totalMasuk / tanggalBulan.length * 100) + '%' : '0%';
+    rows.push([u.name, uname, totalMasuk, totalLengkap, totalMasukSaja, pct, ...cols]);
+  });
+
+  const [yr, mo] = bulanDipilih.split('-');
+  const bulanLabel = new Date(yr, mo-1, 1).toLocaleDateString('id-ID', {month:'long', year:'numeric'});
+  const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g,'""') + '"').join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent('﻿' + csv);
+  a.download = 'rekap_bulanan_' + bulanDipilih + '.csv';
+  a.click();
+  toast('CSV rekap bulanan berhasil diunduh!', 'green');
 }
 
 // ═══════════════
